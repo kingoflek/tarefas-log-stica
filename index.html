@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tarefas da Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: barra de doca no topo; à esquerda o formulário de atribuição (só gestores), à direita a fila de tarefas como etiquetas de carga */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --surface-2:#f6f8fa; --line:#d5dce3;
+  --fg:#16212c; --muted:#5b6a78; --accent:#f2a900; --accent-ink:#1b1400;
+  --steel:#24394d; --steel-ink:#ffffff;
+  --ok:#1f8a4c; --ok-bg:#e3f4ea; --warn:#b4570a; --warn-bg:#fdf0e1; --crit:#c0322b; --crit-bg:#fbe7e5;
+  --font-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --font-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f161d; --surface:#18222c; --surface-2:#1e2a35; --line:#2d3b48;
+  --fg:#e6ecf1; --muted:#97a6b4; --accent:#f5b51f; --accent-ink:#1b1400;
+  --steel:#2c4760; --steel-ink:#ffffff;
+  --ok:#4cc483; --ok-bg:#16301f; --warn:#f0a25a; --warn-bg:#352512; --crit:#f27b72; --crit-bg:#3a1a18;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161d; --surface:#18222c; --surface-2:#1e2a35; --line:#2d3b48;
+  --fg:#e6ecf1; --muted:#97a6b4; --accent:#f5b51f; --accent-ink:#1b1400;
+  --steel:#2c4760; --steel-ink:#ffffff;
+  --ok:#4cc483; --ok-bg:#16301f; --warn:#f0a25a; --warn-bg:#352512; --crit:#f27b72; --crit-bg:#3a1a18;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.dock{background:var(--steel);color:var(--steel-ink);
+  padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background-image:repeating-linear-gradient(135deg,var(--accent) 0 10px,transparent 10px 20px);
+  background-size:100% 6px;background-repeat:no-repeat;background-position:bottom}
+.dock-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between}
+.brand{font-family:var(--font-display);font-weight:700;font-size:28px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.brand small{display:block;font-family:var(--font-body);font-weight:500;font-size:12px;letter-spacing:.08em;opacity:.75;margin-top:4px}
+.who{display:flex;align-items:center;gap:10px}
+.who .chip{background:rgba(255,255,255,.12);border-radius:999px;padding:6px 12px;font-weight:600}
+.who .role{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.linkbtn{background:none;border:1px solid rgba(255,255,255,.4);color:var(--steel-ink);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px}
+.linkbtn:hover{background:rgba(255,255,255,.1)}
+
+main{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+main.gestor{grid-template-columns:minmax(0,360px) minmax(0,1fr);align-items:start}
+@media (max-width:860px){main.gestor{grid-template-columns:minmax(0,1fr)}}
+
+.banner{grid-column:1/-1;background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;font-weight:500}
+
+/* Seleção de usuário */
+.pick{max-width:640px;margin:40px auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pick h1{font-family:var(--font-display);font-size:34px;text-transform:uppercase;margin:0 0 4px;text-wrap:balance}
+.pick p{color:var(--muted);margin:0 0 20px}
+.pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.pick-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer}
+.pick-grid button:hover{border-color:var(--accent)}
+.pick-grid strong{font-family:var(--font-display);font-size:22px;text-transform:uppercase;letter-spacing:.02em}
+.pick-grid span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pick-grid button.g span{color:var(--warn)}
+.pick-grid em{font-style:normal;font-size:11px;color:var(--muted);margin-top:4px}
+.pick-note{font-size:13px;color:var(--muted);margin-top:14px}
+.auth{max-width:380px;margin:0 auto}
+.auth .who-big{font-family:var(--font-display);font-size:30px;text-transform:uppercase;line-height:1;margin:0 0 4px}
+.auth p{margin:0 0 14px;color:var(--muted);font-size:14px}
+.authbtns{display:flex;gap:8px}
+.authbtns .btn-primary{width:auto;flex:1}
+.pwpanel{grid-column:1/-1;max-width:420px}
+.reset{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}
+.reset h3{font-family:var(--font-display);font-size:18px;text-transform:uppercase;letter-spacing:.03em;margin:0 0 4px}
+.reset p{font-size:13px;color:var(--muted);margin:0 0 10px}
+.reset-row{display:flex;gap:8px;flex-wrap:wrap}
+.reset-row select{flex:1;min-width:150px}
+
+/* Formulário */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.panel h2{font-family:var(--font-display);font-size:22px;text-transform:uppercase;letter-spacing:.03em;margin:0 0 14px}
+.field{display:grid;gap:5px;margin-bottom:12px}
+.field label{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field .hint{font-size:12px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400}
+input,select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+textarea{resize:vertical;min-height:72px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick{display:flex;gap:6px}
+.quick .btn{flex:1;padding:5px 8px}
+.prio{display:flex;gap:6px}
+.prio input{position:absolute;opacity:0;width:1px;height:1px}
+.prio label{flex:1;text-align:center;border:1px solid var(--line);border-radius:8px;padding:7px 4px;cursor:pointer;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--fg)}
+.prio input:checked+label{background:var(--steel);color:var(--steel-ink);border-color:var(--steel)}
+.prio input:focus-visible+label{outline:3px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;padding:11px 16px;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:var(--accent-ink);width:100%;font-size:16px}
+.btn-primary:hover{filter:brightness(1.05)}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+.btn-danger{background:var(--crit);color:#fff}
+.btn-sm{padding:7px 11px;font-size:13px;border-radius:8px}
+.msg{font-size:13px;margin-top:8px;min-height:1.2em}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--crit)}
+
+/* Lista */
+.list-head{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin-bottom:12px}
+.list-head h2{font-family:var(--font-display);font-size:26px;text-transform:uppercase;margin:0;letter-spacing:.02em}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:13px;color:var(--muted)}
+.stat b{font-family:var(--font-mono);color:var(--fg);font-variant-numeric:tabular-nums;margin-right:4px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters select{width:auto;min-width:150px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:8px 12px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--steel);color:var(--steel-ink)}
+
+.tasks{display:grid;gap:12px}
+.task{background:var(--surface);border:1px solid var(--line);border-radius:12px;display:grid;grid-template-columns:8px minmax(0,1fr);overflow:hidden}
+.task .stripe{background:var(--line)}
+.task.p-alta .stripe{background:var(--crit)}
+.task.p-media .stripe{background:var(--ok)}
+.task.p-baixa .stripe{background:var(--muted)}
+.task.done{opacity:.78}
+.task.done .stripe{background:var(--ok)}
+.tbody{padding:0;display:grid;min-width:0}
+.thead{all:unset;box-sizing:border-box;display:grid;gap:4px;padding:12px 16px;cursor:pointer;min-width:0}
+.thead:hover{background:var(--surface-2)}
+.thead:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.task.open .thead{padding-bottom:6px}
+.summary{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.summary b{color:var(--fg);font-weight:600}
+.sku{font-family:var(--font-mono);font-weight:500!important;letter-spacing:.02em}
+.chev{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:6px;color:var(--muted);transition:transform .15s}
+.task.open .chev{transform:rotate(180deg)}
+.details{padding:4px 16px 14px;display:grid;gap:10px;min-width:0}
+.tasks-tools{display:flex;gap:6px;margin-left:auto}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:16px}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:8px 14px;cursor:pointer;font-family:var(--font-display);font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);display:inline-flex;align-items:center;gap:8px}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.badge{font-family:var(--font-mono);font-size:12px;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums}
+.badge:empty{display:none}
+.tabs{overflow-x:auto}
+.tabs .tab-late{color:var(--crit)}
+.tabs .tab-late[aria-selected="true"]{color:var(--crit);border-bottom-color:var(--crit)}
+.badge.late{background:var(--crit);color:#fff}
+@media (prefers-reduced-motion:no-preference){.badge.late:not(:empty){animation:pulso 1.6s ease-in-out infinite}}
+@keyframes pulso{0%,100%{box-shadow:0 0 0 0 var(--crit)}50%{box-shadow:0 0 0 5px transparent}}
+.task.late{border:2px solid var(--crit);background:var(--crit-bg)}
+.task.late .stripe{background:var(--crit)}
+.task.late .thead:hover{background:transparent;filter:brightness(.97)}
+.task.late .acao{background:var(--surface)}
+.pill.max{background:var(--crit);color:#fff}
+.late-head{grid-column:1/-1;display:flex;align-items:center;gap:10px;background:var(--crit);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:600}
+.late-head b{font-family:var(--font-display);font-size:22px;letter-spacing:.02em}
+.pill.conf{background:var(--surface-2);color:var(--warn);border:1px solid var(--warn)}
+.pill.chk{background:var(--ok);color:#fff}
+.devbox{background:var(--crit-bg);color:var(--crit);border-radius:8px;padding:8px 10px;font-size:13px}
+.devbox p,.confbox p{margin:2px 0 0;color:var(--fg);white-space:pre-wrap;overflow-wrap:anywhere}
+.confbox{background:var(--ok-bg);color:var(--ok);border:1px dashed var(--ok);border-radius:8px;padding:8px 10px;font-size:13px}
+.ttop{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.ttitle{font-weight:600;font-size:17px;margin:0;overflow-wrap:anywhere}
+.code{font-family:var(--font-mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.pill.pend{background:var(--warn-bg);color:var(--warn)}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.late{background:var(--crit-bg);color:var(--crit)}
+.pill.prio{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.pill.prio.pr-baixa{background:var(--muted);color:var(--surface);border-color:var(--muted)}
+.pill.prio.pr-media{background:var(--ok);color:#fff;border-color:var(--ok)}
+.pill.prio.pr-alta{background:var(--crit);color:#fff;border-color:var(--crit)}
+#p-baixa:checked+label{background:var(--muted);border-color:var(--muted);color:var(--surface)}
+#p-media:checked+label{background:var(--ok);border-color:var(--ok);color:#fff}
+#p-alta:checked+label{background:var(--crit);border-color:var(--crit);color:#fff}
+.block{display:grid;gap:2px}
+.block .lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.block p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.acao{background:var(--surface-2);border-left:3px solid var(--accent);border-radius:6px;padding:8px 10px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--fg);font-weight:600}
+.tactions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.confirm{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
+.confirm input{flex:1;min-width:180px}
+.donebox{background:var(--ok-bg);color:var(--ok);border-radius:8px;padding:8px 10px;font-size:13px}
+.donebox p{margin:2px 0 0;color:var(--fg);white-space:pre-wrap}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:28px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--fg);font-size:16px;margin-bottom:4px}
+
+@media (max-width:520px){.row2{grid-template-columns:1fr}.brand{font-size:24px}}
+@media (prefers-reduced-motion:no-preference){.task{transition:opacity .2s}}
+</style>
+</head>
+<body>
+
+<header class="dock">
+  <div class="dock-in">
+    <div class="brand">Tarefas da Logística<small>Atribuição e conferência</small></div>
+    <div class="who" id="who" hidden>
+      <div><div class="role" id="whoRole"></div><div class="chip" id="whoName"></div></div>
+      <button class="linkbtn" id="mudarSenha" type="button">Alterar senha</button>
+      <button class="linkbtn" id="trocar" type="button">Sair</button>
+    </div>
+  </div>
+</header>
+
+<section class="pick" id="pick" hidden>
+  <h1>Quem é você?</h1>
+  <p id="pickIntro">Escolha seu nome e digite sua senha.</p>
+  <div class="pick-grid" id="pickGrid"></div>
+  <div class="pick-note" id="pickNote">Conectando ao servidor…</div>
+  <form class="auth panel" id="auth" hidden autocomplete="on">
+    <div class="who-big" id="authName"></div>
+    <p id="authHint"></p>
+    <input type="text" id="a-user" autocomplete="username" hidden>
+    <div class="field"><label for="a-pw">Senha</label><input id="a-pw" type="password" autocomplete="current-password" maxlength="72"></div>
+    <div class="authbtns">
+      <button class="btn btn-primary" type="submit" id="a-submit">Entrar</button>
+      <button class="btn btn-ghost" type="button" id="a-back">Voltar</button>
+    </div>
+    <div class="msg" id="a-msg" role="status"></div>
+  </form>
+</section>
+
+<main id="app" hidden>
+  <div class="banner" id="banner" hidden></div>
+
+  <form class="panel pwpanel" id="pwPanel" hidden autocomplete="on">
+    <h2>Alterar minha senha</h2>
+    <div class="field"><label for="c-atual">Senha atual</label><input id="c-atual" type="password" autocomplete="current-password" maxlength="64"></div>
+    <div class="field"><label for="c-nova">Nova senha <span class="hint">· mínimo 6 caracteres</span></label><input id="c-nova" type="password" autocomplete="new-password" maxlength="72"></div>
+    <div class="field"><label for="c-nova2">Repita a nova senha</label><input id="c-nova2" type="password" autocomplete="new-password" maxlength="72"></div>
+    <div class="authbtns">
+      <button class="btn btn-primary" type="submit" id="c-submit">Salvar nova senha</button>
+      <button class="btn btn-ghost" type="button" id="c-cancel">Cancelar</button>
+    </div>
+    <div class="msg" id="c-msg" role="status"></div>
+  </form>
+
+  <section class="panel" id="formPanel" hidden>
+    <h2>Nova tarefa</h2>
+    <form id="form" autocomplete="off">
+      <div class="field"><label for="f-titulo">Título</label>
+        <input id="f-titulo" required maxlength="120" placeholder="Ex.: Conferir carga do caminhão 3"></div>
+      <div class="field"><label for="f-sku">SKU <span class="hint">· opcional</span></label>
+        <input id="f-sku" maxlength="60" placeholder="Ex.: 7891234-AZ-M" style="font-family:var(--font-mono)"></div>
+      <div class="field"><label for="f-desc">Descrição <span class="hint">· o contexto da tarefa</span></label>
+        <textarea id="f-desc" required maxlength="2000" placeholder="Ex.: Chegaram 42 volumes do fornecedor, NF 18.532, doca 2."></textarea></div>
+      <div class="field"><label for="f-acao">Ação esperada <span class="hint">· o que a pessoa deve fazer</span></label>
+        <textarea id="f-acao" required maxlength="2000" placeholder="Ex.: Contar os volumes, conferir com a NF e registrar avarias."></textarea></div>
+      <div class="field"><label for="f-resp">Responsável</label>
+        <select id="f-resp" required></select></div>
+      <div class="row2">
+        <div class="field"><label for="f-prazo">Prazo</label><input id="f-prazo" type="date">
+          <div class="quick"><button type="button" class="btn btn-ghost btn-sm" data-dias="0">Hoje</button><button type="button" class="btn btn-ghost btn-sm" data-dias="1">Amanhã</button></div></div>
+        <div class="field"><label>Prioridade</label>
+          <div class="prio" role="radiogroup" aria-label="Prioridade">
+            <input type="radio" name="prio" id="p-baixa" value="baixa"><label for="p-baixa">Baixa</label>
+            <input type="radio" name="prio" id="p-media" value="media" checked><label for="p-media">Média</label>
+            <input type="radio" name="prio" id="p-alta" value="alta"><label for="p-alta">Alta</label>
+          </div></div>
+      </div>
+      <button class="btn btn-primary" type="submit" id="f-submit">Atribuir tarefa</button>
+      <div class="msg" id="f-msg" role="status"></div>
+    </form>
+  </section>
+
+  <section id="listSec" style="min-width:0">
+    <div class="tabs" id="tabs" role="tablist">
+      <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late">⚠ Atrasadas <span class="badge late" id="lateBadge"></span></button>
+      <button type="button" role="tab" data-view="tarefas" aria-selected="true">Tarefas</button>
+      <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden>Conferência <span class="badge" id="confBadge"></span></button>
+    </div>
+    <div class="list-head">
+      <h2 id="listTitle">Minhas tarefas</h2>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Situação">
+        <button type="button" data-st="pendente" aria-pressed="true">Pendentes</button>
+        <button type="button" data-st="concluida" aria-pressed="false">Concluídas</button>
+        <button type="button" data-st="todas" aria-pressed="false">Todas</button>
+      </div>
+      <select id="fltResp" aria-label="Filtrar por responsável" hidden></select>
+      <div class="tasks-tools">
+        <button type="button" class="btn btn-ghost btn-sm" id="expAll">Expandir todas</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="colAll">Recolher todas</button>
+      </div>
+    </div>
+    <div class="tasks" id="tasks">
+      <div class="empty"><strong>Carregando tarefas…</strong>Conectando ao quadro compartilhado.</div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ===== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase =====
+   Supabase > Project Settings > API (ou "API Keys")                    */
+const SUPABASE_URL = "gptayugiaxkilkzqtmcz";      // ex.: https://abcdefgh.supabase.co
+const SUPABASE_KEY = "sb_publishable_Ew_UkjJhPjJo1pzxBtgiwA__amFwLO6";    // a chave "anon public" ou "publishable"
+/* ==================================================================== */
+
+let USERS = [], GESTORES = [], CONFERENTES = [], perfis = [];
+const PRIO_LBL = {alta:"Alta",media:"Média",baixa:"Baixa"};
+const PRIO_ORD = {alta:0,media:1,baixa:2};
+
+let sb = null, me = null, tasks = [], loaded = false, perfisLoaded = false;
+let canal = null, poll = null, loadTimer = null;
+let filtroSt = "pendente", filtroResp = "";
+let openConfirm = null, openDelete = null, openAprov = null, openDevolver = null;
+const isGestor = n => GESTORES.includes(n);
+const isConferente = n => CONFERENTES.includes(n);
+let view = "tarefas";
+const SEG_LBL = {tarefas:["Pendentes","Concluídas","Todas"], conferencia:["Aguardando conferência","Aprovadas","Todas"]};
+const expanded = new Set();
+let visibleIds = [];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hoje = () => { const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const fmtData = iso => { if(!iso) return ""; const [y,m,d] = iso.slice(0,10).split("-"); return `${d}/${m}/${y}`; };
+const fmtDT = ms => ms ? new Date(ms).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+const codigo = id => "LOG-" + id.replace(/[^a-zA-Z0-9]/g,"").slice(-5).toUpperCase();
+
+/* ---------- Conversão entre o banco (snake_case) e a tela (camelCase) ---------- */
+const TS = ["criado_em","concluido_em","conferido_em"];
+const toCamel = k => k.replace(/_([a-z])/g, (m,c) => c.toUpperCase());
+const toSnake = k => k.replace(/[A-Z]/g, c => "_" + c.toLowerCase());
+function fromRow(r){
+  const t = {};
+  for(const k in r){ let v = r[k]; if(TS.includes(k)) v = v ? Date.parse(v) : null; if(k==="prazo") v = v || ""; t[toCamel(k)] = v; }
+  return t;
+}
+function toRow(o){
+  const r = {};
+  for(const k in o){ const sk = toSnake(k); let v = o[k]; if(TS.includes(sk)) v = v ? new Date(v).toISOString() : null; if(sk==="prazo") v = v || null; r[sk] = v; }
+  return r;
+}
+function errMsg(err, padrao){
+  const m = (err && (err.message || "")) + "";
+  if(err && (err.code === "42501" || err.code === "sem_permissao" || /permiss|row-level security/i.test(m))) return "Você não tem permissão para fazer isso.";
+  return padrao;
+}
+
+/* ---------- Identidade ---------- */
+let pendingUser = null;
+
+function renderPick(){
+  $("pickGrid").innerHTML = USERS.map(u =>
+    `<button type="button" class="${isGestor(u)?"g":""}" data-u="${esc(u)}"><strong>${esc(u)}</strong><span>${isGestor(u)?"Gestor · atribui e executa":"Executa tarefas"}</span></button>`).join("");
+  $("pickNote").hidden = perfisLoaded && USERS.length > 0;
+}
+
+function openAuth(u){
+  pendingUser = u;
+  $("pickGrid").hidden = true; $("pickNote").hidden = true; $("pickIntro").hidden = true;
+  $("auth").hidden = false;
+  $("authName").textContent = u;
+  const p = perfis.find(x => x.nome === u);
+  $("a-user").value = p ? p.email : u;
+  $("a-pw").value = ""; $("a-msg").textContent = "";
+  $("authHint").textContent = "Digite sua senha para entrar.";
+  $("a-pw").focus();
+}
+function closeAuth(){
+  pendingUser = null;
+  $("auth").hidden = true; $("pickGrid").hidden = false; $("pickIntro").hidden = false;
+  renderPick();
+}
+
+$("pickGrid").addEventListener("click", e => {
+  const b = e.target.closest("button[data-u]"); if(!b || !sb) return;
+  openAuth(b.dataset.u);
+});
+$("a-back").addEventListener("click", closeAuth);
+
+$("auth").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("a-msg"), pw = $("a-pw").value;
+  const fail = t => { msg.className = "msg err"; msg.textContent = t; };
+  const p = perfis.find(x => x.nome === pendingUser);
+  if(!p || !sb) return;
+  if(!pw) return fail("Digite a senha.");
+  $("a-submit").disabled = true;
+  try{
+    const { data, error } = await sb.auth.signInWithPassword({ email: p.email, password: pw });
+    if(error){
+      return fail(/invalid login/i.test(error.message) ? "Senha incorreta. Se esqueceu, peça ao administrador para redefinir." : "Não foi possível entrar: " + error.message);
+    }
+    entrar(data.user);
+  }catch{ fail("Sem conexão com o servidor. Tente de novo."); }
+  finally{ $("a-submit").disabled = false; }
+});
+
+function entrar(user){
+  const p = perfis.find(x => x.id === user.id);
+  if(!p){
+    sb.auth.signOut();
+    $("pickNote").textContent = "Este usuário existe, mas não está cadastrado na tabela de perfis. Fale com o administrador.";
+    $("pickNote").hidden = false;
+    return;
+  }
+  me = p.nome;
+  $("auth").hidden = true; $("pickGrid").hidden = false; $("pickIntro").hidden = false; pendingUser = null;
+  showApp();
+  iniciarDados();
+}
+
+async function logout(){
+  pararDados();
+  me = null; tasks = []; loaded = false; expanded.clear();
+  $("pwPanel").hidden = true;
+  try { await sb.auth.signOut(); } catch {}
+  closeAuth(); showApp();
+}
+$("trocar").addEventListener("click", logout);
+
+/* Alterar a própria senha */
+$("mudarSenha").addEventListener("click", () => {
+  const p = $("pwPanel"); p.hidden = !p.hidden;
+  $("c-atual").value = $("c-nova").value = $("c-nova2").value = ""; $("c-msg").textContent = "";
+  if(!p.hidden) $("c-atual").focus();
+});
+$("c-cancel").addEventListener("click", () => { $("pwPanel").hidden = true; });
+$("pwPanel").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("c-msg"); const fail = t => { msg.className = "msg err"; msg.textContent = t; };
+  const p = perfis.find(x => x.nome === me);
+  if(!sb || !p) return;
+  const atual = $("c-atual").value, nova = $("c-nova").value;
+  if(nova.length < 6) return fail("A nova senha precisa ter pelo menos 6 caracteres.");
+  if(nova !== $("c-nova2").value) return fail("As duas senhas novas não são iguais.");
+  $("c-submit").disabled = true;
+  try{
+    const chk = await sb.auth.signInWithPassword({ email: p.email, password: atual });
+    if(chk.error) return fail("Senha atual incorreta.");
+    const { error } = await sb.auth.updateUser({ password: nova });
+    if(error) return fail(/different/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : "Não foi possível salvar: " + error.message);
+    msg.className = "msg ok"; msg.textContent = "Senha alterada.";
+    $("c-atual").value = $("c-nova").value = $("c-nova2").value = "";
+  }catch{ fail("Sem conexão com o servidor. Tente de novo."); }
+  finally{ $("c-submit").disabled = false; }
+});
+
+function showApp(){
+  const has = !!me;
+  $("pick").hidden = has; $("app").hidden = !has; $("who").hidden = !has;
+  if(!has){ renderPick(); return; }
+  const g = isGestor(me);
+  $("whoName").textContent = me;
+  $("whoRole").textContent = g ? "Gestor" : "Executor";
+  $("formPanel").hidden = !g;
+  $("app").className = g ? "gestor" : "";
+  $("fltResp").hidden = !g;
+  $("tabConf").hidden = !isConferente(me);
+  if(view==="conferencia" && !isConferente(me)) view = "tarefas";
+  syncTabs();
+  filtroResp = g ? filtroResp : "";
+  openConfirm = openDelete = null;
+  if(!loaded) $("tasks").innerHTML = `<div class="empty"><strong>Carregando tarefas…</strong>Conectando ao servidor.</div>`;
+  render();
+}
+
+/* ---------- Formulário ---------- */
+function renderRespOptions(){
+  $("f-resp").innerHTML = `<option value="">Selecione…</option>` + USERS.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
+}
+$("f-prazo").min = hoje();
+document.querySelectorAll(".quick button").forEach(b => b.addEventListener("click", () => {
+  const d = new Date(); d.setDate(d.getDate() + Number(b.dataset.dias));
+  $("f-prazo").value = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}));
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("f-msg");
+  if(!sb){ msg.className="msg err"; msg.textContent="Sem conexão com o servidor. A tarefa não foi salva."; return; }
+  const t = {
+    titulo: $("f-titulo").value.trim(),
+    sku: $("f-sku").value.trim().toUpperCase(),
+    descricao: $("f-desc").value.trim(),
+    acao: $("f-acao").value.trim(),
+    responsavel: $("f-resp").value,
+    prazo: $("f-prazo").value || "",
+    prioridade: (document.querySelector('input[name="prio"]:checked')||{}).value || "media",
+    status: "pendente",
+    criadoPor: me,
+    obsConclusao: ""
+  };
+  if(!t.titulo || !t.descricao || !t.acao || !t.responsavel){ msg.className="msg err"; msg.textContent="Preencha título, descrição, ação e responsável."; return; }
+  $("f-submit").disabled = true;
+  try{
+    const { error } = await sb.from("tarefas").insert(toRow(t));
+    if(error) throw error;
+    msg.className="msg ok"; msg.textContent = `Tarefa atribuída a ${t.responsavel}.`;
+    $("f-titulo").value = $("f-sku").value = $("f-desc").value = $("f-acao").value = ""; $("f-prazo").value = "";
+    $("f-titulo").focus();
+    carregarTarefas();
+  }catch(err){
+    msg.className="msg err";
+    msg.textContent = errMsg(err, "Não foi possível salvar. Tente de novo em instantes.");
+  }finally{ $("f-submit").disabled = false; }
+});
+
+/* ---------- Filtros ---------- */
+function syncTabs(){
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view===view)));
+  const lbl = SEG_LBL[view] || SEG_LBL.tarefas;
+  document.querySelectorAll(".seg button").forEach((b,i) => { b.textContent = lbl[i]; b.setAttribute("aria-pressed", String(b.dataset.st===filtroSt)); });
+  document.querySelector(".seg").hidden = view==="atrasadas";
+  $("listTitle").textContent = view==="conferencia" ? "Conferência" : view==="atrasadas" ? "Atrasadas" : (isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas");
+  $("listTitle").style.color = view==="atrasadas" ? "var(--crit)" : "";
+}
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
+  if(view === b.dataset.view) return;
+  view = b.dataset.view; filtroSt = "pendente";
+  openConfirm = openDelete = openAprov = openDevolver = null;
+  syncTabs(); render();
+}));
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  filtroSt = b.dataset.st;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x===b)));
+  render();
+}));
+$("fltResp").addEventListener("change", e => { filtroResp = e.target.value; render(); });
+$("expAll").addEventListener("click", () => { visibleIds.forEach(id => expanded.add(id)); render(); });
+$("colAll").addEventListener("click", () => { expanded.clear(); openConfirm = openDelete = null; render(); });
+
+/* ---------- Render ---------- */
+function atrasada(t){ return t.status!=="concluida" && t.prazo && t.prazo < hoje(); }
+function diasAtraso(t){ return atrasada(t) ? Math.round((Date.parse(hoje()) - Date.parse(t.prazo.slice(0,10))) / 864e5) : 0; }
+
+function render(){
+  if(!me) return;
+  const g = isGestor(me);
+  const conf = view === "conferencia", atr = view === "atrasadas";
+  const meus = g ? tasks : tasks.filter(t => t.responsavel === me);
+  const base = conf ? tasks.filter(t => t.status==="concluida") : atr ? meus.filter(atrasada) : meus;
+  $("confBadge").textContent = tasks.filter(t => t.status==="concluida" && !t.conferida).length || "";
+  $("lateBadge").textContent = meus.filter(atrasada).length || "";
+
+  if(g){
+    const cnt = {}; tasks.forEach(t => { if(t.status!=="concluida") cnt[t.responsavel]=(cnt[t.responsavel]||0)+1; });
+    $("fltResp").innerHTML = `<option value="">Todos os responsáveis</option>` +
+      USERS.map(u => `<option value="${esc(u)}" ${u===filtroResp?"selected":""}>${esc(u)}${cnt[u]?` (${cnt[u]} pend.)`:""}</option>`).join("");
+  }
+
+  if(atr){
+    const max = base.reduce((m,t) => Math.max(m, diasAtraso(t)), 0);
+    $("stats").innerHTML = `<span class="stat" style="color:var(--crit)"><b style="color:var(--crit)">${base.length}</b>atrasadas</span>` + (max ? `<span class="stat"><b>${max}</b>${max===1?"dia":"dias"} de maior atraso</span>` : "");
+  } else if(conf){
+    const ag = base.filter(t => !t.conferida).length, ap = base.length - ag;
+    $("stats").innerHTML = `<span class="stat"><b>${ag}</b>aguardando</span><span class="stat"><b>${ap}</b>aprovadas</span>`;
+  } else {
+    const pend = base.filter(t => t.status!=="concluida").length;
+    const late = base.filter(atrasada).length;
+    const done = base.filter(t => t.status==="concluida").length;
+    $("stats").innerHTML =
+      `<span class="stat"><b>${pend}</b>pendentes</span>` +
+      (late ? `<span class="stat" style="color:var(--crit)"><b style="color:var(--crit)">${late}</b>atrasadas</span>` : "") +
+      `<span class="stat"><b>${done}</b>concluídas</span>`;
+  }
+
+  let list = atr ? base.slice() : conf
+    ?base.filter(t => filtroSt==="todas" ? true : filtroSt==="concluida" ? !!t.conferida : !t.conferida)
+    : base.filter(t => filtroSt==="todas" ? true : filtroSt==="concluida" ? t.status==="concluida" : t.status!=="concluida");
+  if(g && filtroResp) list = list.filter(t => t.responsavel === filtroResp);
+  list.sort((a,b) => {
+    if(a.status!==b.status) return a.status==="concluida" ? 1 : -1;
+    if(a.status==="concluida"){
+      if(!!a.conferida !== !!b.conferida) return a.conferida ? 1 : -1;
+      return (b.concluidoEm||0)-(a.concluidoEm||0);
+    }
+    const la = atrasada(a)?0:1, lb = atrasada(b)?0:1; if(la!==lb) return la-lb;
+    if(!la && !lb){ const d = diasAtraso(b)-diasAtraso(a); if(d) return d; }
+    const p = (PRIO_ORD[a.prioridade]??1)-(PRIO_ORD[b.prioridade]??1); if(p) return p;
+    return (a.prazo||"9999").localeCompare(b.prazo||"9999") || (a.criadoEm||0)-(b.criadoEm||0);
+  });
+
+  const box = $("tasks");
+  if(!loaded){ return; }
+  if(!list.length){
+    let t, s;
+    if(atr){ t = "Nenhuma tarefa atrasada"; s = g ? (filtroResp ? "Esta pessoa está em dia." : "A equipe está em dia com os prazos.") : "Você está em dia com os prazos."; }
+    else if(conf){
+      if(filtroSt==="pendente"){ t = "Nada para conferir"; s = "Quando alguém concluir uma tarefa, ela aparece aqui para você aprovar ou devolver."; }
+      else { t = "Nenhuma tarefa neste filtro"; s = "Mude o filtro acima para ver outras."; }
+    }
+    else if(!tasks.length){ t = "Nenhuma tarefa ainda"; s = g ? "Use o formulário “Nova tarefa” para atribuir a primeira." : "Quando um gestor atribuir uma tarefa a você, ela aparece aqui."; }
+    else if(filtroSt==="pendente"){ t = "Nada pendente"; s = g ? "Todas as tarefas deste filtro foram concluídas." : "Você está em dia. Bom trabalho!"; }
+    else { t = "Nenhuma tarefa neste filtro"; s = "Mude o filtro acima para ver outras."; }
+    box.innerHTML = `<div class="empty"><strong>${t}</strong>${s}</div>`;
+    return;
+  }
+  visibleIds = list.map(t => t.id);
+  box.innerHTML = (atr ? `<div class="late-head">⚠ <span><b>${list.length}</b> ${list.length===1?"tarefa passou":"tarefas passaram"} do prazo. Prioridade máxima: resolva estas primeiro.</span></div>` : "") + list.map(t => card(t, g)).join("");
+}
+
+function card(t, g){
+  const done = t.status==="concluida";
+  const late = atrasada(t);
+  const meu = t.responsavel === me;
+  const conf = view === "conferencia";
+  const devolvida = !done && t.devolucao && t.devolucao.motivo;
+  const status = done
+      ? (t.conferida ? `<span class="pill chk">✓ Conferida</span>` : `<span class="pill ok">Concluída</span><span class="pill conf">Aguard. conferência</span>`)
+      : (devolvida ? `<span class="pill late">Devolvida</span>` : "") + (late ? `<span class="pill max">⚠ Atrasada ${diasAtraso(t)} ${diasAtraso(t)===1?"dia":"dias"}</span>` : devolvida ? "" : `<span class="pill pend">Pendente</span>`);
+  const prioPill = late ? `<span class="pill max">Prioridade máxima</span>` : `<span class="pill prio pr-${PRIO_LBL[t.prioridade]?esc(t.prioridade):"media"}">Prioridade ${PRIO_LBL[t.prioridade]||"Média"}</span>`;
+  let actions = "";
+  if(conf){
+    if(isConferente(me) && done){
+      const id = esc(t.id);
+      if(t.conferida){
+        actions = `<button class="btn btn-ghost btn-sm" data-act="desconferir" data-id="${id}">Desfazer conferência</button>`;
+      } else if(openAprov===t.id){
+        actions = `<div class="confirm"><input id="cobs-${id}" maxlength="500" placeholder="Observação da conferência (opcional)"><button class="btn btn-ok btn-sm" data-act="aprovar" data-id="${id}">Confirmar aprovação</button><button class="btn btn-ghost btn-sm" data-act="cancelar">Cancelar</button></div>`;
+      } else if(openDevolver===t.id){
+        actions = `<div class="confirm"><input id="mot-${id}" maxlength="500" placeholder="O que precisa ser refeito? (obrigatório)"><button class="btn btn-danger btn-sm" data-act="devolver" data-id="${id}">Devolver tarefa</button><button class="btn btn-ghost btn-sm" data-act="cancelar">Cancelar</button></div>`;
+      } else {
+        actions = `<button class="btn btn-ok" data-act="abrirAprov" data-id="${id}">✓ Aprovar conferência</button><button class="btn btn-ghost" data-act="abrirDev" data-id="${id}">↩ Devolver para refazer</button>`;
+      }
+    }
+  }
+  else if(!done && meu){
+    actions = openConfirm===t.id
+      ? `<div class="confirm"><input id="obs-${esc(t.id)}" maxlength="500" placeholder="Observação (opcional): ex. faltou 1 volume"><button class="btn btn-ok btn-sm" data-act="concluir" data-id="${esc(t.id)}">Confirmar conclusão</button><button class="btn btn-ghost btn-sm" data-act="cancelar">Cancelar</button></div>`
+      : `<button class="btn btn-ok" data-act="abrir" data-id="${esc(t.id)}">✓ Marcar como concluída</button>`;
+  }
+  if(g && !conf){
+    if(done) actions += `<button class="btn btn-ghost btn-sm" data-act="reabrir" data-id="${esc(t.id)}">Reabrir</button>`;
+    actions += openDelete===t.id
+      ? `<span class="confirm" style="width:auto">Excluir esta tarefa? <button class="btn btn-danger btn-sm" data-act="excluir" data-id="${esc(t.id)}">Sim, excluir</button><button class="btn btn-ghost btn-sm" data-act="cancelar">Não</button></span>`
+      : `<button class="btn btn-ghost btn-sm" data-act="pedirExcluir" data-id="${esc(t.id)}">Excluir</button>`;
+  }
+  const open = expanded.has(t.id);
+  return `<article class="task p-${esc(t.prioridade)} ${done?"done":""} ${late?"late":""} ${open?"open":""}">
+    <div class="stripe"></div>
+    <div class="tbody">
+      <button type="button" class="thead" data-act="toggle" data-id="${esc(t.id)}" aria-expanded="${open}" title="${open?"Recolher":"Expandir"}">
+        <span class="ttop">
+          <span style="min-width:0"><span class="code">${codigo(t.id)}</span><span class="ttitle" style="display:block">${esc(t.titulo)}</span></span>
+          <span class="pills">${status}${prioPill}<span class="chev" aria-hidden="true">▾</span></span>
+        </span>
+        ${open?"":`<span class="summary">${t.sku?`<span>SKU: <b class="sku">${esc(t.sku)}</b></span>`:""}<span>Responsável: <b>${esc(t.responsavel)}</b></span>${t.prazo?`<span>Prazo: <b style="${late?"color:var(--crit)":""}">${fmtData(t.prazo)}</b></span>`:""}</span>`}
+      </button>
+      ${open?`<div class="details">
+      <div class="block"><span class="lbl">Descrição</span><p>${esc(t.descricao)}</p></div>
+      <div class="block acao"><span class="lbl">Ação esperada</span><p>${esc(t.acao)}</p></div>
+      <div class="meta">
+        ${t.sku?`<span>SKU: <b class="sku">${esc(t.sku)}</b></span>`:""}
+        <span>Responsável: <b>${esc(t.responsavel)}</b></span>
+        <span>Atribuída por: <b>${esc(t.criadoPor)}</b></span>
+        ${t.prazo?`<span>Prazo: <b style="${late?"color:var(--crit)":""}">${fmtData(t.prazo)}</b></span>`:""}
+        <span>Criada em ${fmtDT(t.criadoEm)}</span>
+      </div>
+      ${done?`<div class="donebox">✓ Concluída por <b>${esc(t.concluidoPor||t.responsavel)}</b> em ${fmtDT(t.concluidoEm)}${t.obsConclusao?`<p>${esc(t.obsConclusao)}</p>`:""}</div>`:""}
+      ${done && t.conferida?`<div class="confbox">✓ Conferida e aprovada por <b>${esc(t.conferidoPor)}</b> em ${fmtDT(t.conferidoEm)}${t.obsConferencia?`<p>${esc(t.obsConferencia)}</p>`:""}</div>`:""}
+      ${devolvida?`<div class="devbox">↩ Devolvida por <b>${esc(t.devolucao.por)}</b> em ${fmtDT(t.devolucao.em)}. Refaça e marque como concluída de novo.<p>${esc(t.devolucao.motivo)}</p></div>`:""}
+      ${actions?`<div class="tactions">${actions}</div>`:""}
+      </div>`:""}
+    </div></article>`;
+}
+
+async function atualizar(id, patch){
+  const { data, error } = await sb.from("tarefas").update(toRow(patch)).eq("id", id).select("id");
+  if(error) throw error;
+  if(!data || !data.length) throw { code: "sem_permissao" };
+}
+
+$("tasks").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if(!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  if(act==="toggle"){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); if([openConfirm,openDelete,openAprov,openDevolver].includes(id)) openConfirm = openDelete = openAprov = openDevolver = null; render(); return; }
+  if(act==="abrir"){ openConfirm = id; openDelete = null; render(); const i = $("obs-"+id); i && i.focus(); return; }
+  if(act==="cancelar"){ openConfirm = openDelete = openAprov = openDevolver = null; render(); return; }
+  if(act==="abrirAprov"){ openAprov = id; openDevolver = null; render(); const i = $("cobs-"+id); i && i.focus(); return; }
+  if(act==="abrirDev"){ openDevolver = id; openAprov = null; render(); const i = $("mot-"+id); i && i.focus(); return; }
+  if(act==="devolver" && !(($("mot-"+id)||{}).value||"").trim()){ const i = $("mot-"+id); i.placeholder = "Escreva o motivo para devolver"; i.focus(); return; }
+  if(act==="pedirExcluir"){ openDelete = id; openConfirm = null; render(); return; }
+  if(!sb) return;
+  b.disabled = true;
+  try{
+    if(act==="concluir"){
+      const obs = ($("obs-"+id)||{}).value || "";
+      await atualizar(id, {status:"concluida", concluidoEm:Date.now(), concluidoPor:me, obsConclusao:obs.trim(), conferida:false, conferidoPor:null, conferidoEm:null, obsConferencia:""});
+      openConfirm = null;
+    } else if(act==="reabrir"){
+      await atualizar(id, {status:"pendente", concluidoEm:null, concluidoPor:null, obsConclusao:"", conferida:false, conferidoPor:null, conferidoEm:null, obsConferencia:""});
+    } else if(act==="aprovar"){
+      const obs = ($("cobs-"+id)||{}).value || "";
+      await atualizar(id, {conferida:true, conferidoPor:me, conferidoEm:Date.now(), obsConferencia:obs.trim()});
+      openAprov = null;
+    } else if(act==="devolver"){
+      const mot = ($("mot-"+id)||{}).value.trim();
+      await atualizar(id, {status:"pendente", concluidoEm:null, conferida:false, conferidoPor:null, conferidoEm:null, obsConferencia:"", devolucao:{por:me, em:Date.now(), motivo:mot}});
+      openDevolver = null;
+    } else if(act==="desconferir"){
+      await atualizar(id, {conferida:false, conferidoPor:null, conferidoEm:null, obsConferencia:""});
+    } else if(act==="excluir"){
+      const { error } = await sb.from("tarefas").delete().eq("id", id);
+      if(error) throw error;
+      openDelete = null;
+    }
+    await carregarTarefas();
+  }catch(err){
+    showBanner(errMsg(err, "Não foi possível salvar a alteração. Tente de novo."));
+    b.disabled = false;
+  }
+  render();
+});
+
+function showBanner(txt){ const b = $("banner"); b.textContent = txt; b.hidden = !txt; }
+
+/* ---------- Dados (Supabase) ---------- */
+let carregando = 0;
+async function carregarTarefas(){
+  if(!sb || !me) return;
+  const n = ++carregando;
+  const { data, error } = await sb.from("tarefas").select("*");
+  if(n !== carregando || !me) return;   // chegou uma resposta mais nova
+  if(error){
+    showBanner("Não foi possível carregar as tarefas. Verifique a conexão; o site tenta de novo sozinho.");
+    return;
+  }
+  clearTimeout(loadTimer);
+  if($("banner").textContent.startsWith("Não foi possível carregar") || $("banner").textContent.startsWith("O servidor")) showBanner("");
+  tasks = data.map(fromRow);
+  loaded = true;
+  render();
+}
+
+function iniciarDados(){
+  pararDados();
+  loadTimer = setTimeout(() => { if(!loaded) showBanner("O servidor ainda não respondeu. Verifique a conexão; as tarefas aparecem assim que conectar."); }, 10000);
+  carregarTarefas();
+  canal = sb.channel("tarefas-tempo-real")
+    .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => carregarTarefas())
+    .subscribe();
+  poll = setInterval(carregarTarefas, 60000);   // garantia caso o tempo real caia
+}
+function pararDados(){
+  clearTimeout(loadTimer); clearInterval(poll); poll = null;
+  if(canal && sb){ sb.removeChannel(canal); canal = null; }
+}
+document.addEventListener("visibilitychange", () => { if(!document.hidden) carregarTarefas(); });
+
+async function carregarPerfis(){
+  const { data, error } = await sb.from("perfis").select("id,nome,email,gestor,conferente,ordem").order("ordem");
+  if(error) throw error;
+  perfis = data || [];
+  USERS = perfis.map(p => p.nome);
+  GESTORES = perfis.filter(p => p.gestor).map(p => p.nome);
+  CONFERENTES = perfis.filter(p => p.conferente).map(p => p.nome);
+  perfisLoaded = true;
+  renderRespOptions();
+}
+
+async function boot(){
+  const note = $("pickNote");
+  if(!/^https:\/\/.+/.test(SUPABASE_URL) || SUPABASE_KEY.startsWith("COLE_")){
+    note.textContent = "Falta configurar: abra o index.html e cole a URL e a chave do Supabase no início do script.";
+    return;
+  }
+  if(!window.supabase){ note.textContent = "Não foi possível carregar a biblioteca do Supabase. Verifique a internet e recarregue."; return; }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  try{ await carregarPerfis(); }
+  catch{ note.textContent = "Não foi possível conectar ao Supabase. Confira a URL e a chave no index.html."; return; }
+  if(!USERS.length){ note.textContent = "Nenhum usuário cadastrado ainda. Rode o passo 2 (cadastrar perfis) no Supabase."; return; }
+  renderPick();
+  const { data } = await sb.auth.getSession();
+  if(data && data.session) entrar(data.session.user);
+  sb.auth.onAuthStateChange(ev => { if(ev === "SIGNED_OUT" && me){ setTimeout(logout, 0); } });
+}
+
+showApp();
+boot();
+</script>
+</body>
+</html>
