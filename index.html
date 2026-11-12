@@ -2021,6 +2021,55 @@ function extrairItensFullML(paginas){
   return [...mapa.values()];
 }
 
+/* Leitor do PDF de pedido da Distribuidora ("Pedido Nº 107"): tabela
+   # | Código | Produto | Qtde. | Unidade | Preço... entre o cabeçalho e "Valor total".
+   Cada linha começa no código (coluna Código); o produto pode ter 2 linhas, acima e abaixo do código. */
+function extrairItensPedidoDist(paginas){
+  const itens = []; let linhasPdf = 0;
+  let col = null;
+  for(const its of paginas){
+    const hCod = its.find(i => /^C[oó]digo$/i.test(i.s.trim()));
+    const hQtd = its.find(i => /^Qtde\.?$/i.test(i.s.trim()));
+    if(hCod && hQtd){
+      const hProd = its.find(i => /^Produto$/i.test(i.s.trim()) && Math.abs(i.y - hCod.y) < 3);
+      const hUn = its.find(i => /^Unidade$/i.test(i.s.trim()) && Math.abs(i.y - hCod.y) < 3);
+      col = { cod: hCod.x, prod: hProd ? hProd.x : hCod.x + 45, qtd: hQtd.x, un: hUn ? hUn.x : hQtd.x + 30, num: hCod.x - 10 };
+    }
+    if(!col) continue;
+    const topo = hCod ? hCod.y - 3 : Infinity;
+    const vt = its.find(i => /^Valor total/i.test(i.s.trim()));
+    const fundo = vt ? vt.y + 3 : -Infinity;
+    const naFaixa = i => i.y < topo && i.y > fundo;
+    linhasPdf += its.filter(i => naFaixa(i) && i.x < col.cod - 2 && /^\d+$/.test(i.s.trim())).length;
+    const inicios = its.filter(i => naFaixa(i) && i.x >= col.cod - 3 && i.x < col.prod - 3 && /^[A-Z0-9][A-Z0-9\-_.\/]{2,}$/i.test(i.s.trim()))
+      .sort((a, b) => b.y - a.y);
+    inicios.forEach((ini, k) => {
+      const cima = k ? (inicios[k - 1].y + ini.y) / 2 : topo;
+      const baixo = k + 1 < inicios.length ? (ini.y + inicios[k + 1].y) / 2 : fundo;
+      const faixa = its.filter(i => i.y < cima && i.y >= baixo);
+      const desc = faixa.filter(i => i.x >= col.prod - 3 && i.x < col.qtd - 6).sort((a, b) => b.y - a.y || a.x - b.x).map(i => i.s.trim()).join(" ").replace(/\s+/g, " ");
+      const q = faixa.find(i => i.x >= col.qtd - 8 && i.x < col.un - 3 && /^\d+([.,]\d+)?$/.test(i.s.trim()));
+      itens.push({ sku: ini.s.trim().toUpperCase(), descricao: desc.slice(0, 200), quantidade: q ? Math.round(numeroBR(q.s)) : "" });
+    });
+  }
+  const mapa = new Map();
+  for(const it of itens){
+    const ja = mapa.get(it.sku);
+    if(ja){ ja.quantidade = (Number(ja.quantidade) || 0) + (Number(it.quantidade) || 0); continue; }
+    mapa.set(it.sku, { ...it, tipo: classificar(it.sku) });
+  }
+  return { itens: [...mapa.values()], linhasPdf, lidas: itens.length };
+}
+// "Nome Fantasia" (ou "Cliente") do pedido, para compor o nome
+function clienteDoPedido(paginas){
+  const its = paginas[0] || [];
+  for(const rot of [/^Nome Fantasia:?$/i, /^Cliente:?$/i]){
+    const r = its.find(i => rot.test(i.s.trim()));
+    if(r){ const v = its.filter(i => Math.abs(i.y - r.y) < 2 && i.x > r.x).sort((a, b) => a.x - b.x)[0]; if(v) return v.s.trim(); }
+  }
+  return "";
+}
+
 // Totais impressos no topo do PDF, para conferir se nada ficou de fora
 function totaisDoPdf(linhas){
   const t = linhas.join(" ");
@@ -2097,7 +2146,7 @@ function renderPrevia(){
     <div class="prev-foot">
       <label class="sr" for="prevNome">Nome do envio</label>
       <input id="prevNome" value="${esc(P.nome)}" maxlength="80" placeholder="Nome do envio (ex.: Full 12/11)">
-      <button type="button" class="btn btn-primary" data-pa="salvar">Salvar envio</button>
+      <button type="button" class="btn btn-primary" data-pa="salvar">Salvar ${C().envio}</button>
     </div>
     ${P.bruto ? `<details class="raw"><summary>Ver o texto lido do PDF (${P.bruto.length} linhas)</summary><pre>${esc(P.bruto.join("\n"))}</pre></details>` : ""}`;
   resumoPrevia();
@@ -2175,18 +2224,26 @@ $("fullFile").addEventListener("change", async e => {
     const { linhas, paginas } = await lerLinhasPdf(f);
     if(!linhas.length){ msg.className = "msg err"; msg.textContent = "Não encontrei texto neste PDF. Ele parece ser uma imagem escaneada; use “Digitar sem PDF”."; return; }
     const ehFullML = linhas.some(l => /C[oó]digo ML/i.test(l));
-    const itens = ehFullML ? extrairItensFullML(paginas) : extrairItens(linhas);
+    // pedido da Distribuidora: "Pedido Nº …" com a tabela Código / Produto / Qtde.
+    const ehPedido = !ehFullML && linhas.some(l => /Pedido\s*N[º°o]/i.test(l)) && paginas.some(p => p.some(i => /^Qtde\.?$/i.test(i.s.trim())));
+    const ped = ehPedido ? extrairItensPedidoDist(paginas) : null;
+    const itens = ehFullML ? extrairItensFullML(paginas) : ped ? ped.itens : extrairItens(linhas);
     const txtPdf = linhas.join(" ");
     const numero = canalCarregado === "dist"
-      ? (txtPdf.match(/pedido\s*(?:de\s*venda\s*)?(?:n[º°o.]*\s*)?[:#-]?\s*(\d{3,})/i) || [])[1]
+      ? (txtPdf.match(/pedido\s*(?:de\s*venda\s*)?(?:n[º°o.]*\s*)?[:#-]?\s*(\d{2,})/i) || [])[1]
       : (txtPdf.match(/Frete\s*#\s*(\d+)/i) || [])[1];
-    fullPrevia = { nome: nomePadrao(numero), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
+    const cliente = ehPedido ? clienteDoPedido(paginas) : "";
+    fullPrevia = { nome: (nomePadrao(numero) + (cliente ? ` · ${cliente}` : "")).slice(0, 80), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
     if(itens.length){
       const semQtd = itens.filter(i => !(Number(i.quantidade) > 0) || !i.sku).length;
       const tot = totaisDoPdf(linhas);
       const unid = itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
       let conf = "";
-      if(tot.produtos != null || tot.unidades != null){
+      if(ped){
+        conf = ped.linhasPdf === ped.lidas
+          ? ` ✓ Bate com o PDF: ${ped.linhasPdf} ${ped.linhasPdf === 1 ? "linha" : "linhas"} de produto, ${unid} unidades.`
+          : ` ⚠ O PDF tem ${ped.linhasPdf} linhas de produto e eu li ${ped.lidas}. Confira a lista.`;
+      } else if(tot.produtos != null || tot.unidades != null){
         const bateP = tot.produtos == null || tot.produtos === itens.length, bateU = tot.unidades == null || tot.unidades === unid;
         conf = bateP && bateU
           ? ` ✓ Bate com o PDF: ${itens.length} produtos e ${unid} unidades.`
@@ -2194,7 +2251,7 @@ $("fullFile").addEventListener("change", async e => {
       }
       msg.className = conf.includes("⚠") || semQtd ? "msg err" : "msg ok";
       msg.textContent = `Encontrei ${itens.length} SKUs.` + conf + ` Ajuste o que precisar` +
-        (semQtd ? ` e preencha SKU ou quantidade que faltaram em ${semQtd} linha${semQtd > 1 ? "s" : ""}` : "") + `. Depois clique em “Salvar envio”.`;
+        (semQtd ? ` e preencha SKU ou quantidade que faltaram em ${semQtd} linha${semQtd > 1 ? "s" : ""}` : "") + `. Depois clique em “Salvar ${C().envio}”.`;
     } else {
       msg.className = "msg err";
       msg.textContent = "Não consegui identificar os SKUs neste PDF. Digite-os abaixo; o texto lido está no fim, em “Ver o texto lido do PDF”.";
