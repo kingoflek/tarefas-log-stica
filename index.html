@@ -190,6 +190,46 @@ textarea{resize:vertical;min-height:72px}
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:28px 20px;text-align:center;color:var(--muted)}
 .empty strong{display:block;color:var(--fg);font-size:16px;margin-bottom:4px}
 
+/* Métricas */
+.met-top{display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between;margin-bottom:14px}
+.met-top h2{font-family:var(--font-display);font-size:26px;text-transform:uppercase;margin:0;letter-spacing:.02em}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi span{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi b{display:block;font-family:var(--font-display);font-size:30px;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi.crit b{color:var(--crit)}
+.destaques{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:14px}
+.dest{border-radius:12px;padding:12px 14px;font-size:13px}
+.dest .lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.dest strong{display:block;font-family:var(--font-display);font-size:24px;text-transform:uppercase;color:var(--fg);line-height:1.2}
+.dest p{margin:2px 0 0;color:var(--fg)}
+.dest.ok{background:var(--ok-bg);color:var(--ok)}
+.dest.bad{background:var(--warn-bg);color:var(--warn)}
+.mtable-wrap{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+.mtable{width:100%;border-collapse:collapse;font-size:14px;min-width:820px}
+.mtable th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0;border-bottom:1px solid var(--line);white-space:nowrap}
+.mtable th button{all:unset;box-sizing:border-box;cursor:pointer;padding:10px 12px;display:block;width:100%}
+.mtable th button:hover{color:var(--fg)}
+.mtable th button:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.mtable th[aria-sort]:not([aria-sort="none"]){color:var(--fg)}
+.mtable td{padding:10px 12px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mtable tr:last-child td{border-bottom:0}
+.mtable .r{text-align:right}
+.mtable th.r button{text-align:right}
+.mtable tr.sem td{color:var(--muted)}
+.mtable .rank{font-family:var(--font-mono);color:var(--muted);width:1%}
+.mtable .nome{font-weight:600}
+.score{display:inline-block;min-width:46px;text-align:center;border-radius:999px;padding:2px 9px;font-weight:700;font-family:var(--font-mono);font-size:13px}
+.score.hi{background:var(--ok-bg);color:var(--ok)}
+.score.mid{background:var(--surface-2);color:var(--fg);border:1px solid var(--line)}
+.score.lo{background:var(--crit-bg);color:var(--crit)}
+.tbar{display:flex;align-items:center;gap:8px}
+.tbar i{display:block;height:8px;border-radius:4px;background:var(--accent);min-width:3px}
+.tbar i.slow{background:var(--crit)}
+.tbar span{min-width:64px}
+.txt-crit{color:var(--crit);font-weight:700}
+.met-nota{font-size:12px;color:var(--muted);margin:10px 2px 0;line-height:1.6}
+
 @media (max-width:520px){.row2{grid-template-columns:1fr}.brand{font-size:24px}}
 @media (prefers-reduced-motion:no-preference){.task{transition:opacity .2s}}
 </style>
@@ -273,6 +313,28 @@ textarea{resize:vertical;min-height:72px}
       <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late">⚠ Atrasadas <span class="badge late" id="lateBadge"></span></button>
       <button type="button" role="tab" data-view="tarefas" aria-selected="true">Tarefas</button>
       <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden>Conferência <span class="badge" id="confBadge"></span></button>
+      <button type="button" role="tab" data-view="metricas" aria-selected="false" id="tabMet" hidden>Métricas</button>
+    </div>
+    <div id="metrics" hidden>
+      <div class="met-top">
+        <h2>Desempenho da equipe</h2>
+        <div class="seg" role="group" aria-label="Período" id="metPer">
+          <button type="button" data-d="7" aria-pressed="false">7 dias</button>
+          <button type="button" data-d="30" aria-pressed="true">30 dias</button>
+          <button type="button" data-d="90" aria-pressed="false">90 dias</button>
+          <button type="button" data-d="0" aria-pressed="false">Tudo</button>
+        </div>
+      </div>
+      <div class="kpis" id="metKpis"></div>
+      <div class="destaques" id="metDest"></div>
+      <div class="mtable-wrap"><table class="mtable" id="metTable"></table></div>
+      <p class="met-nota">
+        <b>Como ler:</b> conta as tarefas <b>criadas no período</b>.
+        <b>Tempo médio</b> vai da atribuição até a conclusão; a barra fica vermelha quando passa de 1,5× a média da equipe.
+        <b>No prazo</b> considera só as concluídas que tinham prazo.
+        <b>Retrabalho</b> é a parte das tarefas que a conferência devolveu para refazer.
+        <b>Nota</b> (0 a 100) = 40% no prazo + 30% sem retrabalho + 30% rapidez (comparada a quem foi mais rápido no período). Só aparece com pelo menos 3 tarefas concluídas no período.
+      </p>
     </div>
     <div class="list-head">
       <h2 id="listTitle">Minhas tarefas</h2>
@@ -453,11 +515,11 @@ function showApp(){
   const g = isGestor(me);
   $("whoName").textContent = me;
   $("whoRole").textContent = g ? "Gestor" : "Executor";
-  $("formPanel").hidden = !g;
-  $("app").className = g ? "gestor" : "";
   $("fltResp").hidden = !g;
   $("tabConf").hidden = !isConferente(me);
+  $("tabMet").hidden = !g;
   if(view==="conferencia" && !isConferente(me)) view = "tarefas";
+  if(view==="metricas" && !g) view = "tarefas";
   syncTabs();
   filtroResp = g ? filtroResp : "";
   openConfirm = openDelete = null;
@@ -510,10 +572,17 @@ $("form").addEventListener("submit", async e => {
 function syncTabs(){
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view===view)));
   const lbl = SEG_LBL[view] || SEG_LBL.tarefas;
-  document.querySelectorAll(".seg button").forEach((b,i) => { b.textContent = lbl[i]; b.setAttribute("aria-pressed", String(b.dataset.st===filtroSt)); });
-  document.querySelector(".seg").hidden = view==="atrasadas";
+  document.querySelectorAll(".filters .seg button").forEach((b,i) => { b.textContent = lbl[i]; b.setAttribute("aria-pressed", String(b.dataset.st===filtroSt)); });
+  document.querySelector(".filters .seg").hidden = view==="atrasadas";
   $("listTitle").textContent = view==="conferencia" ? "Conferência" : view==="atrasadas" ? "Atrasadas" : (isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas");
   $("listTitle").style.color = view==="atrasadas" ? "var(--crit)" : "";
+  const met = view==="metricas", g = isGestor(me);
+  $("metrics").hidden = !met;
+  document.querySelector(".list-head").hidden = met;
+  document.querySelector(".filters").hidden = met;
+  $("tasks").hidden = met;
+  $("formPanel").hidden = !g || met;           // métricas usam a largura toda
+  $("app").className = g && !met ? "gestor" : "";
 }
 document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
   if(view === b.dataset.view) return;
@@ -521,9 +590,9 @@ document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click
   openConfirm = openDelete = openAprov = openDevolver = null;
   syncTabs(); render();
 }));
-document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+document.querySelectorAll(".filters .seg button").forEach(b => b.addEventListener("click", () => {
   filtroSt = b.dataset.st;
-  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x===b)));
+  document.querySelectorAll(".filters .seg button").forEach(x => x.setAttribute("aria-pressed", String(x===b)));
   render();
 }));
 $("fltResp").addEventListener("change", e => { filtroResp = e.target.value; render(); });
@@ -542,6 +611,7 @@ function render(){
   const base = conf ? tasks.filter(t => t.status==="concluida") : atr ? meus.filter(atrasada) : meus;
   $("confBadge").textContent = tasks.filter(t => t.status==="concluida" && !t.conferida).length || "";
   $("lateBadge").textContent = meus.filter(atrasada).length || "";
+  if(view==="metricas"){ renderMetricas(); return; }
 
   if(g){
     const cnt = {}; tasks.forEach(t => { if(t.status!=="concluida") cnt[t.responsavel]=(cnt[t.responsavel]||0)+1; });
@@ -599,6 +669,136 @@ function render(){
   visibleIds = list.map(t => t.id);
   box.innerHTML = (atr ? `<div class="late-head">⚠ <span><b>${list.length}</b> ${list.length===1?"tarefa passou":"tarefas passaram"} do prazo. Prioridade máxima: resolva estas primeiro.</span></div>` : "") + list.map(t => card(t, g)).join("");
 }
+
+/* ---------- Métricas (só gestores) ---------- */
+let metDias = 30, metOrd = "nota";
+const ymd = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const num1 = x => (x < 10 ? x.toFixed(1).replace(".", ",") : String(Math.round(x)));
+function fmtDur(ms){
+  if(ms == null) return "—";
+  const min = ms / 6e4;
+  if(min < 60) return Math.max(1, Math.round(min)) + " min";
+  const h = min / 60;
+  if(h < 24) return num1(h) + " h";
+  const d = h / 24;
+  return num1(d) + (d < 1.95 ? " dia" : " dias");
+}
+const pct = x => x == null ? "—" : Math.round(x * 100) + "%";
+const media = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+
+/* Colunas: chave, rótulo, ordem padrão (1 = maior primeiro), alinhamento à direita */
+const MET_COLS = [
+  ["nota", "Nota", 1, 0], ["nome", "Colaborador", -1, 0], ["done", "Concluídas", 1, 1], ["pend", "Pendentes", 1, 1],
+  ["media", "Tempo médio", -1, 0], ["pctPrazo", "No prazo", 1, 1], ["pctRetrab", "Retrabalho", -1, 1], ["atrasadas", "Atrasadas agora", -1, 1]
+];
+
+function calcMetricas(){
+  const desde = metDias ? Date.now() - metDias * 864e5 : 0;
+  const base = tasks.filter(t => (t.criadoEm || 0) >= desde);
+  const linhas = USERS.map(nome => {
+    const ts = base.filter(t => t.responsavel === nome);
+    const done = ts.filter(t => t.status === "concluida" && t.concluidoEm && t.criadoEm);
+    const tempos = done.map(t => Math.max(0, t.concluidoEm - t.criadoEm));
+    const comPrazo = done.filter(t => t.prazo);
+    const noPrazo = comPrazo.filter(t => ymd(new Date(t.concluidoEm)) <= t.prazo.slice(0, 10)).length;
+    const devolvidas = ts.filter(t => t.devolucao && t.devolucao.motivo);
+    const entregues = done.length + devolvidas.filter(t => t.status !== "concluida").length;
+    return {
+      nome, total: ts.length, done: done.length, pend: ts.length - done.length,
+      tempos, media: media(tempos),
+      pctPrazo: comPrazo.length ? noPrazo / comPrazo.length : null, comPrazo: comPrazo.length,
+      devolvidas: devolvidas.length, pctRetrab: entregues ? devolvidas.length / entregues : null,
+      atrasadas: tasks.filter(t => t.responsavel === nome && atrasada(t)).length,
+      nota: null
+    };
+  });
+  const todosTempos = linhas.flatMap(l => l.tempos);
+  const mediaEquipe = media(todosTempos);
+  const aptos = linhas.filter(l => l.done >= 3 && l.media != null);
+  const maisRapido = Math.min(...aptos.map(l => l.media));
+  aptos.forEach(l => {
+    const partes = [];
+    if(l.pctPrazo != null) partes.push([0.4, l.pctPrazo]);
+    if(l.pctRetrab != null) partes.push([0.3, 1 - l.pctRetrab]);
+    // rapidez: 1 para o mais rápido; cai de forma suave para quem demora mais
+    partes.push([0.3, l.media > 0 ? Math.sqrt(Math.min(1, maisRapido / l.media)) : 1]);
+    const peso = partes.reduce((s, p) => s + p[0], 0);
+    l.nota = Math.round(100 * partes.reduce((s, p) => s + p[0] * p[1], 0) / peso);
+  });
+  const doneTot = linhas.reduce((s, l) => s + l.done, 0);
+  const prazoTot = linhas.reduce((s, l) => s + l.comPrazo, 0);
+  const noPrazoTot = linhas.reduce((s, l) => s + (l.pctPrazo != null ? Math.round(l.pctPrazo * l.comPrazo) : 0), 0);
+  return {
+    linhas, mediaEquipe, doneTot, total: base.length,
+    pctPrazo: prazoTot ? noPrazoTot / prazoTot : null,
+    atrasadas: tasks.filter(atrasada).length
+  };
+}
+
+function renderMetricas(){
+  document.querySelectorAll("#metPer button").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.d) === metDias)));
+  if(!loaded){ $("metTable").innerHTML = ""; $("metKpis").innerHTML = `<div class="empty" style="grid-column:1/-1"><strong>Carregando tarefas…</strong></div>`; $("metDest").innerHTML = ""; return; }
+  const m = calcMetricas();
+  const perTxt = metDias ? `nos últimos ${metDias} dias` : "desde o início";
+
+  $("metKpis").innerHTML =
+    `<div class="kpi"><span>Tarefas criadas</span><b>${m.total}</b></div>` +
+    `<div class="kpi"><span>Concluídas</span><b>${m.doneTot}</b></div>` +
+    `<div class="kpi"><span>Tempo médio da equipe</span><b>${fmtDur(m.mediaEquipe)}</b></div>` +
+    `<div class="kpi"><span>Concluídas no prazo</span><b>${pct(m.pctPrazo)}</b></div>` +
+    `<div class="kpi ${m.atrasadas ? "crit" : ""}"><span>Atrasadas agora</span><b>${m.atrasadas}</b></div>`;
+
+  const comNota = m.linhas.filter(l => l.nota != null).sort((a, b) => b.nota - a.nota || a.media - b.media);
+  const resumo = l => `Nota ${l.nota} · ${pct(l.pctPrazo)} no prazo · tempo médio ${fmtDur(l.media)} · ${l.done} concluídas`;
+  if(comNota.length){
+    const best = comNota[0], worst = comNota.length > 1 ? comNota[comNota.length - 1] : null;
+    $("metDest").innerHTML =
+      `<div class="dest ok"><span class="lbl">▲ Mais eficiente ${perTxt}</span><strong>${esc(best.nome)}</strong><p>${resumo(best)}</p></div>` +
+      (worst && worst.nota < best.nota ? `<div class="dest bad"><span class="lbl">▼ Precisa de atenção</span><strong>${esc(worst.nome)}</strong><p>${resumo(worst)}</p></div>` : "");
+  } else {
+    $("metDest").innerHTML = `<div class="empty" style="grid-column:1/-1"><strong>Ainda sem dados suficientes ${perTxt}</strong>A nota aparece quando um colaborador tem pelo menos 3 tarefas concluídas no período. Tente um período maior.</div>`;
+  }
+
+  const col = MET_COLS.find(c => c[0] === metOrd) || MET_COLS[0];
+  const dir = col[2];
+  const linhas = m.linhas.slice().sort((a, b) => {
+    const va = a[metOrd], vb = b[metOrd];
+    if(va == null && vb == null) return b.total - a.total || a.nome.localeCompare(b.nome);
+    if(va == null) return 1;
+    if(vb == null) return -1;
+    const asc = typeof va === "string" ? va.localeCompare(vb) : va - vb;
+    return (dir === 1 ? -asc : asc) || a.nome.localeCompare(b.nome);
+  });
+  const maxMedia = Math.max(0, ...m.linhas.map(l => l.media || 0));
+  const head = `<thead><tr><th class="rank">#</th>` + MET_COLS.map(([k, lbl, , r]) =>
+    `<th class="${r ? "r" : ""}" aria-sort="${k === metOrd ? (col[2] === 1 ? "descending" : "ascending") : "none"}"><button type="button" data-ord="${k}">${lbl}${k === metOrd ? (k === "nome" ? " ▲" : col[2] === 1 ? " ▼" : " ▲") : ""}</button></th>`).join("") + `</tr></thead>`;
+  const body = linhas.map((l, i) => {
+    const notaCls = l.nota == null ? "" : l.nota >= 80 ? "hi" : l.nota >= 60 ? "mid" : "lo";
+    const lento = l.media != null && m.mediaEquipe && l.media > 1.5 * m.mediaEquipe;
+    const w = l.media != null && maxMedia ? Math.max(3, Math.round(90 * l.media / maxMedia)) : 0;
+    return `<tr class="${l.total ? "" : "sem"}">
+      <td class="rank">${i + 1}</td>
+      <td>${l.nota == null ? `<span title="Precisa de 3 concluídas no período">—</span>` : `<span class="score ${notaCls}">${l.nota}</span>`}</td>
+      <td class="nome">${esc(l.nome)}</td>
+      <td class="r">${l.done}</td>
+      <td class="r">${l.pend}</td>
+      <td>${l.media == null ? "—" : `<span class="tbar"><span>${fmtDur(l.media)}</span><i class="${lento ? "slow" : ""}" style="width:${w}px"></i></span>`}</td>
+      <td class="r">${pct(l.pctPrazo)}</td>
+      <td class="r">${l.pctRetrab == null ? "—" : `${pct(l.pctRetrab)}${l.devolvidas ? ` <small style="color:var(--muted)">(${l.devolvidas})</small>` : ""}`}</td>
+      <td class="r ${l.atrasadas ? "txt-crit" : ""}">${l.atrasadas}</td>
+    </tr>`;
+  }).join("");
+  $("metTable").innerHTML = head + `<tbody>${body}</tbody>`;
+}
+
+$("metPer").addEventListener("click", e => {
+  const b = e.target.closest("button[data-d]"); if(!b) return;
+  metDias = Number(b.dataset.d); renderMetricas();
+});
+$("metTable").addEventListener("click", e => {
+  const b = e.target.closest("button[data-ord]"); if(!b) return;
+  metOrd = b.dataset.ord; renderMetricas();
+});
 
 function card(t, g){
   const done = t.status==="concluida";
