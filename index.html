@@ -966,7 +966,7 @@ function fullItemHTML(i, g){
       <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}">+</button>
     </div>
     <div class="fi-bar"><i style="width:${p}%"></i></div>
-    ${g ? `<div class="fi-g"><button type="button" class="btn btn-ghost btn-sm" data-fa="tipo">Mover para ${i.tipo === "par" ? "Só lado" : "Pares"}</button>${fullDelItem === i.id
+    ${g ? `<div class="fi-g">${fullDelItem === i.id
       ? `<button type="button" class="btn btn-danger btn-sm" data-fa="excluirSim">Confirmar exclusão</button><button type="button" class="btn btn-ghost btn-sm" data-fa="excluirNao">Cancelar</button>`
       : `<button type="button" class="btn btn-ghost btn-sm" data-fa="excluir">Excluir</button>`}</div>` : ""}
   </div>`;
@@ -1018,7 +1018,7 @@ function renderFull(){
   const q = semAcento(fullBusca.trim());
   const vis = fullItens.filter(i => (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)) && !(fullOcultarOk && i.produzido >= i.quantidade));
   const coluna = (tipo, titulo) => {
-    const todos = fullItens.filter(i => i.tipo === tipo), its = vis.filter(i => i.tipo === tipo);
+    const todos = fullItens.filter(i => tipoDe(i) === tipo), its = vis.filter(i => tipoDe(i) === tipo);
     const pq = todos.reduce((s, i) => s + i.quantidade, 0), pp = todos.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
     its.sort((a, b) => (a.produzido >= a.quantidade) - (b.produzido >= b.quantidade) || a.ordem - b.ordem);
     return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${todos.length} SKUs · ${pp} de ${pq} peças</span></div>
@@ -1069,10 +1069,7 @@ $("fullConteudo").addEventListener("click", async e => {
   if(fa === "excluirNao"){ fullDelItem = null; renderFull(); return; }
   b.disabled = true;
   try{
-    if(fa === "tipo"){
-      const { data, error } = await sb.from("full_itens").update({ tipo: it.tipo === "par" ? "lado" : "par" }).eq("id", it.id).select("id");
-      if(error || !data.length) throw error || { code: "sem_permissao" };
-    } else if(fa === "excluirSim"){
+    if(fa === "excluirSim"){
       const { error } = await sb.from("full_itens").delete().eq("id", it.id);
       if(error) throw error;
       fullDelItem = null;
@@ -1171,7 +1168,7 @@ function extrairItensFullML(paginas){
     const chave = sku || ("?" + mapa.size);
     const ja = mapa.get(chave);
     if(ja && sku){ ja.quantidade = (Number(ja.quantidade) || 0) + (Number(it.quantidade) || 0); continue; }
-    mapa.set(chave, { sku, descricao: desc, quantidade: it.quantidade, tipo: classificar(sku + " " + titulo) });
+    mapa.set(chave, { sku, descricao: desc, quantidade: it.quantidade, tipo: classificar(sku) });
   }
   return [...mapa.values()];
 }
@@ -1188,13 +1185,13 @@ const RX_QTD = /(?:unidades?|qtd\.?|qtde\.?|quantidade)\s*[:\-]?\s*(\d{1,5})\b/i
 const RX_QTD2 = /\b(\d{1,5})\s*(?:un\b|unid|unidades|p[cç]s\b|pe[cç]as)/i;
 const pareceSku = tok => /^[A-Z0-9][A-Z0-9\-_.\/]{2,}$/i.test(tok) && /\d/.test(tok) && /[A-Z]/i.test(tok);
 
-function classificar(txt){
-  const s = " " + semAcento(txt).toUpperCase().replace(/[^A-Z0-9]+/g, " ") + " ";
-  if(/^\s*PAR[A-Z]*\d/.test(s)) return "par";            // SKU começando com PAR (ex.: PARON0172D)
-  if(/ (PAR|PARES|JOGO|AMBOS LADOS|2 LADOS|LE LD|LD LE|ESQ DIR|DIR ESQ) /.test(s)) return "par";
-  if(/ (LE|LD|ESQ|DIR|ESQUERDO|ESQUERDA|DIREITO|DIREITA|LADO|MOTORISTA|PASSAGEIRO) /.test(s)) return "lado";
-  return "";
+/* Regra única: SKU que começa com "PAR" é Par; qualquer outro é Só lado.
+   O banco aplica a mesma regra ao salvar (trigger full_itens_tipo). */
+function classificar(sku){
+  const s = String(sku || "").trim().toUpperCase();
+  return !s ? "" : s.startsWith("PAR") ? "par" : "lado";
 }
+const tipoDe = i => classificar(i.sku) || i.tipo;
 function acharQtd(l, sku){
   const m = l.match(RX_QTD) || l.match(RX_QTD2);
   if(m) return Number(m[1]);
@@ -1224,7 +1221,7 @@ function extrairItens(linhas){
     const chave = sku.toUpperCase();
     const ja = mapa.get(chave);
     if(ja){ ja.quantidade = (Number(ja.quantidade) || 0) + (qtd || 0); return; }
-    mapa.set(chave, { sku: chave, descricao: desc.slice(0, 200), quantidade: qtd || "", tipo: classificar(chave + " " + desc) });
+    mapa.set(chave, { sku: chave, descricao: desc.slice(0, 200), quantidade: qtd || "", tipo: classificar(chave) });
   });
   return [...mapa.values()];
 }
@@ -1236,19 +1233,17 @@ function renderPrevia(){
   box.innerHTML = `
     <div class="ptable-wrap"><table class="ptable">
       <thead><tr><th>SKU</th><th>Descrição</th><th>Qtd.</th><th>Tipo</th><th></th></tr></thead>
-      <tbody>${P.itens.map((i, k) => `<tr class="${i.tipo ? "" : "falta"}" data-k="${k}">
+      <tbody>${P.itens.map((i, k) => `<tr data-k="${k}">
         <td><input data-pf="sku" value="${esc(i.sku)}" maxlength="60" style="font-family:var(--font-mono)" aria-label="SKU"></td>
         <td><input data-pf="descricao" value="${esc(i.descricao)}" maxlength="200" aria-label="Descrição"></td>
         <td><input class="q" type="number" min="1" data-pf="quantidade" value="${esc(i.quantidade)}" aria-label="Quantidade"></td>
-        <td><select data-pf="tipo" aria-label="Tipo"><option value="">Escolha…</option><option value="par" ${i.tipo === "par" ? "selected" : ""}>Par</option><option value="lado" ${i.tipo === "lado" ? "selected" : ""}>Só lado</option></select></td>
+        <td class="ptipo">${tipoTag(i.sku)}</td>
         <td><button type="button" class="btn btn-ghost btn-sm" data-pa="rm" aria-label="Remover linha">✕</button></td>
       </tr>`).join("")}</tbody>
     </table></div>
     <div class="prev-foot">
       <button type="button" class="btn btn-ghost btn-sm" data-pa="add">+ Adicionar linha</button>
-      <span style="font-size:13px;color:var(--muted)">Sem tipo → marcar como:</span>
-      <button type="button" class="btn btn-ghost btn-sm" data-pa="todosPar">Par</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-pa="todosLado">Só lado</button>
+      <span style="font-size:13px;color:var(--muted)">O tipo vem do SKU: começa com “PAR” = Par; qualquer outro = Só lado.</span>
     </div>
     <p class="prev-sum" id="prevSum"></p>
     <div class="prev-foot">
@@ -1259,15 +1254,21 @@ function renderPrevia(){
     ${P.bruto ? `<details class="raw"><summary>Ver o texto lido do PDF (${P.bruto.length} linhas)</summary><pre>${esc(P.bruto.join("\n"))}</pre></details>` : ""}`;
   resumoPrevia();
 }
+function tipoTag(sku){
+  const t = classificar(sku);
+  return t === "par" ? `<span class="pill" style="background:var(--steel);color:var(--steel-ink)">Par</span>`
+       : t === "lado" ? `<span class="pill" style="background:var(--accent);color:var(--accent-ink)">Só lado</span>`
+       : `<span style="color:var(--muted);font-size:12px">—</span>`;
+}
 function resumoPrevia(){
-  const it = fullPrevia.itens, c = t => it.filter(i => i.tipo === t).length;
-  const sem = it.filter(i => !i.tipo).length;
-  $("prevSum").innerHTML = `${it.length} SKUs · ${c("par")} pares · ${c("lado")} só lado` + (sem ? ` · <b style="color:var(--crit)">${sem} sem tipo</b>` : "");
+  const it = fullPrevia.itens, c = t => it.filter(i => classificar(i.sku) === t).length;
+  $("prevSum").innerHTML = `${it.length} SKUs · ${c("par")} pares · ${c("lado")} só lado`;
 }
 $("fullPrev").addEventListener("input", e => {
   const tr = e.target.closest("tr[data-k]"); if(!tr || !e.target.dataset.pf) return;
-  fullPrevia.itens[tr.dataset.k][e.target.dataset.pf] = e.target.value;
-  if(e.target.dataset.pf === "tipo"){ tr.classList.toggle("falta", !e.target.value); resumoPrevia(); }
+  const item = fullPrevia.itens[tr.dataset.k];
+  item[e.target.dataset.pf] = e.target.value;
+  if(e.target.dataset.pf === "sku"){ item.tipo = classificar(item.sku); tr.querySelector(".ptipo").innerHTML = tipoTag(item.sku); resumoPrevia(); }
 });
 $("fullPrev").addEventListener("change", e => { if(e.target.id === "prevNome") fullPrevia.nome = e.target.value; });
 $("fullPrev").addEventListener("click", async e => {
@@ -1275,7 +1276,6 @@ $("fullPrev").addEventListener("click", async e => {
   const P = fullPrevia, pa = b.dataset.pa;
   if(pa === "rm"){ P.itens.splice(Number(b.closest("tr").dataset.k), 1); if(!P.itens.length) P.itens.push(linhaVazia()); renderPrevia(); return; }
   if(pa === "add"){ P.itens.push(linhaVazia()); renderPrevia(); const ins = $("fullPrev").querySelectorAll('input[data-pf="sku"]'); ins[ins.length - 1].focus(); return; }
-  if(pa === "todosPar" || pa === "todosLado"){ P.itens.forEach(i => { if(!i.tipo) i.tipo = pa === "todosPar" ? "par" : "lado"; }); renderPrevia(); return; }
   if(pa === "salvar") salvarPrevia(b);
 });
 
@@ -1284,11 +1284,11 @@ async function salvarPrevia(btn){
   const P = fullPrevia;
   P.nome = $("prevNome").value.trim();
   const itens = P.itens
-    .map(i => ({ sku: String(i.sku || "").trim().toUpperCase(), descricao: String(i.descricao || "").trim(), quantidade: Math.floor(Number(i.quantidade)), tipo: i.tipo }))
+    .map(i => ({ sku: String(i.sku || "").trim().toUpperCase(), descricao: String(i.descricao || "").trim(), quantidade: Math.floor(Number(i.quantidade)), tipo: classificar(i.sku) }))
     .filter(i => i.sku || i.quantidade);
   if(!itens.length) return fail("Não há nenhum item para salvar.");
-  const ruim = itens.findIndex(i => !i.sku || !(i.quantidade > 0) || !i.tipo);
-  if(ruim >= 0) return fail(`Confira a linha ${ruim + 1}: ela precisa de SKU, quantidade maior que zero e tipo (Par ou Só lado).`);
+  const ruim = itens.findIndex(i => !i.sku || !(i.quantidade > 0));
+  if(ruim >= 0) return fail(`Confira a linha ${ruim + 1}: ela precisa de SKU e quantidade maior que zero.`);
   if(!P.nome) return fail("Dê um nome ao envio.");
   const mapa = new Map();   // junta SKUs repetidos do mesmo tipo
   itens.forEach(i => { const k = i.sku + "|" + i.tipo; const ja = mapa.get(k); if(ja) ja.quantidade += i.quantidade; else mapa.set(k, { ...i }); });
@@ -1331,7 +1331,6 @@ $("fullFile").addEventListener("change", async e => {
     const frete = (linhas.join(" ").match(/Frete\s*#\s*(\d+)/i) || [])[1];
     fullPrevia = { nome: frete ? `Full #${frete}` : "Full " + fmtData(hoje()), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
     if(itens.length){
-      const sem = itens.filter(i => !i.tipo).length;
       const semQtd = itens.filter(i => !(Number(i.quantidade) > 0) || !i.sku).length;
       const tot = totaisDoPdf(linhas);
       const unid = itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
@@ -1344,7 +1343,6 @@ $("fullFile").addEventListener("change", async e => {
       }
       msg.className = conf.includes("⚠") || semQtd ? "msg err" : "msg ok";
       msg.textContent = `Encontrei ${itens.length} SKUs.` + conf + ` Ajuste o que precisar` +
-        (sem === 1 ? ", escolha o tipo do item marcado em vermelho" : sem ? `, escolha o tipo dos ${sem} itens marcados em vermelho` : "") +
         (semQtd ? ` e preencha SKU ou quantidade que faltaram em ${semQtd} linha${semQtd > 1 ? "s" : ""}` : "") + `. Depois clique em “Salvar envio”.`;
     } else {
       msg.className = "msg err";

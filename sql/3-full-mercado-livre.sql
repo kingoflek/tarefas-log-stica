@@ -74,6 +74,23 @@ drop trigger if exists full_itens_proteger on public.full_itens;
 create trigger full_itens_proteger before update on public.full_itens
   for each row execute function public.proteger_full_item();
 
+-- Regra do tipo: SKU que começa com "PAR" é Par; qualquer outro é Só lado
+create or replace function public.full_item_tipo() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  new.tipo := case when upper(btrim(new.sku)) like 'PAR%' then 'par' else 'lado' end;
+  return new;
+end $$;
+
+drop trigger if exists full_itens_tipo on public.full_itens;
+create trigger full_itens_tipo before insert or update on public.full_itens
+  for each row execute function public.full_item_tipo();
+
+-- Corrige os itens que já estavam salvos
+update public.full_itens
+   set tipo = case when upper(btrim(sku)) like 'PAR%' then 'par' else 'lado' end
+ where tipo is distinct from case when upper(btrim(sku)) like 'PAR%' then 'par' else 'lado' end;
+
 -- Tempo real
 do $$
 begin
