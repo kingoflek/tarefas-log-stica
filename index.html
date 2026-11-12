@@ -485,15 +485,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 <aside class="side" id="side" hidden>
   <div class="side-brand">
     <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>
-    <div>Logística<small>Tarefas · Full ML</small></div>
+    <div>Logística<small>Tarefas · Full · Distribuidora</small></div>
   </div>
   <nav class="side-nav" id="tabs" role="tablist" aria-orientation="vertical" aria-label="Seções">
     <div class="side-sec">Operação</div>
     <button type="button" role="tab" data-view="tarefas" aria-selected="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Tarefas</span></button>
     <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg><span>Atrasadas</span><span class="badge late" id="lateBadge"></span></button>
     <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m22 4-10 10-3-3"/></svg><span>Conferência</span><span class="badge" id="confBadge"></span></button>
-    <div class="side-sec">Mercado Livre</div>
+    <div class="side-sec">Expedição</div>
     <button type="button" role="tab" data-view="full" aria-selected="false" id="tabFull"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg><span>Full ML</span><span class="badge" id="fullBadge"></span></button>
+    <button type="button" role="tab" data-view="dist" aria-selected="false" id="tabDist"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span>Distribuidora</span><span class="badge" id="distBadge"></span></button>
     <div class="side-sec" id="secGestao" hidden>Gestão</div>
     <button type="button" role="tab" data-view="metricas" aria-selected="false" id="tabMet" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18M7 16v-5M12 16V8M17 16v-8"/></svg><span>Métricas</span></button>
   </nav>
@@ -575,7 +576,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   <section id="listSec" style="min-width:0">
     <div id="fullSec" hidden>
       <div class="met-top">
-        <h2>Full Mercado Livre</h2>
+        <h2 id="fullTitulo">Full Mercado Livre</h2>
         <div class="full-sel">
           <div class="seg full-modo" id="fullModo" role="group" aria-label="Envios">
             <button type="button" data-modo="andamento" aria-pressed="true">Em andamento</button>
@@ -605,8 +606,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
       </section>
 
       <section class="panel full-imp" id="fullImport" hidden>
-        <h2>Importar envio do Full</h2>
-        <p class="full-hint">Escolha o PDF do envio. O site lê o arquivo aqui mesmo, no seu computador, e mostra os SKUs para você conferir antes de salvar.</p>
+        <h2 id="fullImpTit">Importar envio do Full</h2>
+        <p class="full-hint"><span id="fullImpHint">Escolha o PDF do envio.</span> O site lê o arquivo aqui mesmo, no seu computador, e mostra os SKUs para você conferir antes de salvar.</p>
         <div class="full-file">
           <input type="file" id="fullFile" accept="application/pdf,.pdf">
           <button type="button" class="btn btn-ghost btn-sm" id="fullManual">Digitar sem PDF</button>
@@ -897,8 +898,8 @@ function syncTabs(){
   document.querySelector(".filters .seg").hidden = view==="atrasadas";
   $("listTitle").textContent = view==="conferencia" ? "Conferência" : view==="atrasadas" ? "Atrasadas" : (isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas");
   $("listTitle").style.color = view==="atrasadas" ? "var(--crit)" : "";
-  $("crumb").textContent = ({ tarefas: isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas", atrasadas: "Atrasadas", conferencia: "Conferência", full: "Full Mercado Livre", metricas: "Métricas" })[view] || "";
-  const g = isGestor(me), full = view==="full", met = view==="metricas" || full;  // telas de largura toda
+  $("crumb").textContent = ({ tarefas: isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas", atrasadas: "Atrasadas", conferencia: "Conferência", full: "Full Mercado Livre", dist: "Distribuidora", metricas: "Métricas" })[view] || "";
+  const g = isGestor(me), full = telaFull(), met = view==="metricas" || full;  // telas de largura toda
   $("metrics").hidden = view!=="metricas";
   $("fullSec").hidden = !full;
   document.querySelector(".list-head").hidden = met;
@@ -911,6 +912,7 @@ document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click
   if(view === b.dataset.view) return;
   view = b.dataset.view; filtroSt = "pendente";
   openConfirm = openDelete = openAprov = openDevolver = null;
+  if(telaFull() && canalAtual() !== canalCarregado) trocarCanal();   // Full ML ⇄ Distribuidora
   syncTabs(); render();
 }));
 document.querySelectorAll(".filters .seg button").forEach(b => b.addEventListener("click", () => {
@@ -935,7 +937,7 @@ function render(){
   $("confBadge").textContent = tasks.filter(t => t.status==="concluida" && !t.conferida).length || "";
   $("lateBadge").textContent = meus.filter(atrasada).length || "";
   if(view==="metricas"){ renderMetricas(); return; }
-  if(view==="full"){ renderFull(); return; }
+  if(telaFull()){ renderFull(); return; }
 
   if(g){
     const cnt = {}; tasks.forEach(t => { if(t.status!=="concluida") cnt[t.responsavel]=(cnt[t.responsavel]||0)+1; });
@@ -1159,6 +1161,32 @@ $("metTable").addEventListener("click", e => {
 
 /* ---------- Full Mercado Livre ---------- */
 let fullEnvios = [], fullItens = [], fullLoaded = false, fullErro = false, fullSel = "";
+/* Canais que usam a mesma tela: Full ML e Distribuidora (coluna "canal" em full_envios) */
+const CANAIS = {
+  ml:   { titulo: "Full Mercado Livre", envio: "envio",  envios: "envios",  prog: "Full",   Prog: "Full",   imp: "Importar envio do Full" },
+  dist: { titulo: "Distribuidora",      envio: "pedido", envios: "pedidos", prog: "pedido", Prog: "Pedido", imp: "Importar pedido da Distribuidora" }
+};
+const telaFull = () => view === "full" || view === "dist";
+const canalAtual = () => view === "dist" ? "dist" : "ml";
+const C = () => CANAIS[canalAtual()];
+let canalCarregado = "ml", pendentesCanal = { ml: 0, dist: 0 };
+const fullSelPorCanal = {};
+// nome sugerido ao importar: "Full #79752152" / "Pedido #12345", ou com a data se não achar o número
+const nomePadrao = num => canalCarregado === "dist"
+  ? (num ? `Pedido #${num}` : "Pedido " + fmtData(hoje()))
+  : (num ? `Full #${num}` : "Full " + fmtData(hoje()));
+function trocarCanal(){
+  fullSelPorCanal[canalCarregado] = fullSel;
+  canalCarregado = canalAtual();
+  fullSel = fullSelPorCanal[canalCarregado] || "";
+  fullEnvios = []; fullItens = []; fullLoaded = false; fullErro = false;
+  fullAba = "separando"; fullModo = "andamento"; fullBusca = ""; fullDelEnvio = false; fullDelItem = null;
+  histItens = []; histCarregado = false; histBusca = ""; histAbertos.clear();
+  fullPrevia = null; $("fullPrev").innerHTML = ""; $("fullImport").hidden = true; $("wmsImport").hidden = true; $("fullMsg").textContent = "";
+  $("fullConteudo").innerHTML = ""; $("histBusca").value = "";
+  carregarFull();
+}
+
 let fullBusca = "", fullAba = "separando", fullDelEnvio = false, fullDelItem = null;
 let fullModo = "andamento", histItens = [], histCarregado = false, histErro = false, histBusca = "", histAbertos = new Set(), carregandoHist = 0;
 let wmsPos = new Map(), wmsMeta = null, wmsPrevia = null;
@@ -1167,9 +1195,10 @@ let fullPrevia = null, carregandoFull = 0, fullRenderPendente = false;
 async function carregarFull(){
   if(!sb || !me) return;
   const n = ++carregandoFull;
-  const env = await sb.from("full_envios").select("*").order("criado_em", { ascending: false });
+  contarPendentes();
+  const env = await sb.from("full_envios").select("*").eq("canal", canalCarregado).order("criado_em", { ascending: false });
   if(n !== carregandoFull || !me) return;
-  if(env.error){ fullErro = true; fullLoaded = true; if(view === "full") renderFull(); return; }
+  if(env.error){ fullErro = true; fullLoaded = true; if(telaFull()) renderFull(); return; }
   fullErro = false;
   fullEnvios = env.data || [];
   const ativos = fullEnvios.filter(e => !e.concluido_em);          // concluídos vão para o Histórico
@@ -1179,7 +1208,7 @@ async function carregarFull(){
   if(fullSel){
     const it = await sb.from("full_itens").select("*").eq("envio_id", fullSel).order("ordem");
     if(n !== carregandoFull || !me) return;
-    if(it.error){ fullErro = true; fullLoaded = true; if(view === "full") renderFull(); return; }
+    if(it.error){ fullErro = true; fullLoaded = true; if(telaFull()) renderFull(); return; }
     itens = it.data || [];
   }
   // posições do WMS só dos SKUs deste envio (consulta; não bloqueia o Full se falhar)
@@ -1196,8 +1225,8 @@ async function carregarFull(){
   fullItens = itens; fullLoaded = true;
   // não redesenha enquanto alguém digita uma quantidade
   const a = document.activeElement;
-  if(view === "full" && a && a.closest && a.closest("#fullBody .fi-qty")){ fullRenderPendente = true; atualizarFullBadge(); return; }
-  if(view === "full") renderFull(); else atualizarFullBadge();
+  if(telaFull() && a && a.closest && a.closest("#fullBody .fi-qty")){ fullRenderPendente = true; atualizarFullBadge(); return; }
+  if(telaFull()) renderFull(); else atualizarFullBadge();
 }
 
 /* Status de cada item do Full */
@@ -1208,8 +1237,22 @@ const ST_LBL = { separando: "Separando", producao: "Em produção", concluido: "
 // "Fez a transferência do Base" fica sempre aberta para quem separa; sem ela o item não pode ser Concluído
 const semTransf = i => !i.transferido && stDe(i) !== "concluido";
 
+// itens ainda não concluídos de cada canal (todos os envios/pedidos em andamento)
+let contando = 0;
+async function contarPendentes(){
+  if(!sb || !me) return;
+  const n = ++contando;
+  const conta = c => sb.from("full_itens").select("id,full_envios!inner(canal)", { count: "exact", head: true })
+    .neq("status", "concluido").eq("full_envios.canal", c);
+  const [ml, dist] = await Promise.all([conta("ml"), conta("dist")]);
+  if(n !== contando || !me) return;
+  if(!ml.error) pendentesCanal.ml = ml.count || 0;
+  if(!dist.error) pendentesCanal.dist = dist.count || 0;
+  atualizarFullBadge();
+}
 function atualizarFullBadge(){
-  $("fullBadge").textContent = fullItens.filter(i => stDe(i) !== "concluido").length || "";
+  $("fullBadge").textContent = pendentesCanal.ml || "";
+  $("distBadge").textContent = pendentesCanal.dist || "";
 }
 
 const fmtQtd = q => q == null || q === "" ? "" : Number(q).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -1287,10 +1330,14 @@ function renderFull(){
   $("wmsInfo").textContent = wmsMeta
     ? `Posições atuais: ${wmsMeta.total ?? "?"} registros, importados em ${fmtDT(Date.parse(wmsMeta.em))} por ${wmsMeta.por || "—"}.`
     : "Nenhuma posição importada ainda.";
+  const cn = C();
+  $("fullTitulo").textContent = cn.titulo; $("fullImpTit").textContent = cn.imp;
+  $("fullImpHint").textContent = `Escolha o PDF do ${cn.envio}.`;
+  $("histBusca").placeholder = `🔍 Pesquisar ${cn.envio}, SKU ou colaborador…`;
   const ativos = fullEnvios.filter(e => !e.concluido_em), nHist = fullEnvios.length - ativos.length;
   $("fullEnvio").innerHTML = ativos.length
     ? ativos.map(e => `<option value="${esc(e.id)}" ${e.id === fullSel ? "selected" : ""}>${esc(e.nome)} · ${fmtDT(Date.parse(e.criado_em))}</option>`).join("")
-    : `<option value="">Nenhum envio em andamento</option>`;
+    : `<option value="">Nenhum ${cn.envio} em andamento</option>`;
   $("fullEnvio").disabled = !ativos.length;
   $("histCnt").textContent = nHist || "";
   document.querySelectorAll("#fullModo button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.modo === fullModo)));
@@ -1300,11 +1347,11 @@ function renderFull(){
   if(hist){ renderHistorico(); return; }
 
   const box = $("fullConteudo");
-  if(!fullLoaded){ box.innerHTML = `<div class="empty"><strong>Carregando envios…</strong></div>`; return; }
-  if(fullErro){ box.innerHTML = `<div class="empty"><strong>Não foi possível carregar o Full</strong>Verifique a conexão; o site tenta de novo sozinho.</div>`; return; }
+  if(!fullLoaded){ box.innerHTML = `<div class="empty"><strong>Carregando ${cn.envios}…</strong></div>`; return; }
+  if(fullErro){ box.innerHTML = `<div class="empty"><strong>Não foi possível carregar ${cn.titulo === "Distribuidora" ? "a Distribuidora" : "o Full"}</strong>Verifique a conexão; o site tenta de novo sozinho.</div>`; return; }
   if(!ativos.length){
-    box.innerHTML = `<div class="empty"><strong>${fullEnvios.length ? "Nenhum envio em andamento" : "Nenhum envio do Full ainda"}</strong>${
-      nHist ? `Os envios concluídos estão em “📁 Histórico”. ` : ""}${imp ? "Clique em “+ Importar PDF” para cadastrar um envio novo." : "Quando um envio for importado, os SKUs para produzir aparecem aqui."}</div>`;
+    box.innerHTML = `<div class="empty"><strong>${fullEnvios.length ? `Nenhum ${cn.envio} em andamento` : `Nenhum ${cn.envio} ainda`}</strong>${
+      nHist ? `Os ${cn.envios} concluídos estão em “📁 Histórico”. ` : ""}${imp ? `Clique em “+ Importar PDF” para cadastrar um ${cn.envio} novo.` : `Quando um ${cn.envio} for importado, os SKUs para produzir aparecem aqui.`}</div>`;
     return;
   }
   if(!$("fullBody")){
@@ -1323,8 +1370,8 @@ function renderFull(){
   const foco = document.activeElement;
   if(foco && $("fullBody").contains(foco)) foco.blur();
   $("fullDelBox").innerHTML = !g ? "" : fullDelEnvio
-    ? `Excluir este envio inteiro? <button type="button" class="btn btn-danger btn-sm" data-fa="delSim">Sim, excluir</button> <button type="button" class="btn btn-ghost btn-sm" data-fa="delNao">Não</button>`
-    : `<button type="button" class="btn btn-ghost btn-sm" data-fa="delEnvio">Excluir envio</button>`;
+    ? `Excluir este ${cn.envio} inteiro? <button type="button" class="btn btn-danger btn-sm" data-fa="delSim">Sim, excluir</button> <button type="button" class="btn btn-ghost btn-sm" data-fa="delNao">Não</button>`
+    : `<button type="button" class="btn btn-ghost btn-sm" data-fa="delEnvio">Excluir ${cn.envio}</button>`;
 
   const tot = fullItens.reduce((s, i) => s + i.quantidade, 0);
   const feitas = fullItens.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
@@ -1353,8 +1400,8 @@ function renderFull(){
   const nSepOk = fullItens.filter(i => stDe(i) !== "separando").length;
   $("fullProg").className = "fprog" + (cheio ? " cheio" : "");
   $("fullProg").innerHTML = `
-    <div class="fprog-top"><b>${cheio ? "✓ Full concluído" : "Conclusão do Full"}</b><span><strong>${pctTxt}%</strong></span></div>
-    <div class="fprog-bar" role="progressbar" aria-label="Conclusão do Full" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctExato.toFixed(1)}"><i style="width:${cheio ? 100 : pctExato}%"></i></div>
+    <div class="fprog-top"><b>${cheio ? `✓ ${cn.Prog} concluído` : `Conclusão do ${cn.prog}`}</b><span><strong>${pctTxt}%</strong></span></div>
+    <div class="fprog-bar" role="progressbar" aria-label="Conclusão do ${cn.prog}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctExato.toFixed(1)}"><i style="width:${cheio ? 100 : pctExato}%"></i></div>
     <div class="fprog-etapas">
       <span>Transferência <b>${nTransf}/${fullItens.length}</b></span>
       <span>Separação <b>${nSepOk}/${fullItens.length}</b></span>
@@ -1574,17 +1621,18 @@ async function carregarHistorico(){
   if(!sb || !me) return;
   const n = ++carregandoHist;
   const ids = fullEnvios.filter(e => e.concluido_em).slice(0, 60).map(e => e.id);   // os 60 mais recentes
-  if(!ids.length){ histItens = []; histCarregado = true; histErro = false; if(view === "full" && fullModo === "historico") renderHistorico(); return; }
+  if(!ids.length){ histItens = []; histCarregado = true; histErro = false; if(telaFull() && fullModo === "historico") renderHistorico(); return; }
   const { data, error } = await sb.from("full_itens").select("*").in("envio_id", ids).order("ordem");
   if(n !== carregandoHist || !me) return;
   histErro = !!error; histItens = data || []; histCarregado = true;
-  if(view === "full" && fullModo === "historico") renderHistorico();
+  if(telaFull() && fullModo === "historico") renderHistorico();
 }
 
 function renderHistorico(){
   const box = $("histLista");
   const envios = fullEnvios.filter(e => e.concluido_em).sort((a, b) => Date.parse(b.concluido_em) - Date.parse(a.concluido_em)).slice(0, 60);
-  if(!envios.length){ box.innerHTML = `<div class="empty"><strong>Nenhum envio concluído ainda</strong>Quando todos os itens de um envio forem concluídos, ele sai de “Em andamento” e fica guardado aqui.</div>`; return; }
+  const cn = C();
+  if(!envios.length){ box.innerHTML = `<div class="empty"><strong>Nenhum ${cn.envio} concluído ainda</strong>Quando todos os itens de um ${cn.envio} forem concluídos, ele sai de “Em andamento” e fica guardado aqui.</div>`; return; }
   if(!histCarregado){ box.innerHTML = `<div class="empty"><strong>Carregando histórico…</strong></div>`; return; }
   if(histErro){ box.innerHTML = `<div class="empty"><strong>Não foi possível carregar o histórico</strong>Verifique a conexão e tente de novo.</div>`; return; }
   const q = semAcento(histBusca.trim());
@@ -1627,7 +1675,7 @@ function renderHistorico(){
       </div>` : ""}
     </article>`;
   }).join("");
-  box.innerHTML = cards || `<div class="empty"><strong>Nada encontrado</strong>Nenhum envio do histórico tem “${esc(histBusca.trim())}”.</div>`;
+  box.innerHTML = cards || `<div class="empty"><strong>Nada encontrado</strong>Nenhum ${cn.envio} do histórico tem “${esc(histBusca.trim())}”.</div>`;
 }
 
 async function baixarPdfHistorico(envio){
@@ -2090,7 +2138,7 @@ async function salvarPrevia(btn){
   itens.forEach(i => { const k = i.sku + "|" + i.tipo; const ja = mapa.get(k); if(ja) ja.quantidade += i.quantidade; else mapa.set(k, { ...i }); });
   btn.disabled = true; msg.className = "msg"; msg.textContent = "Salvando…";
   try{
-    const { data: env, error } = await sb.from("full_envios").insert({ nome: P.nome, arquivo: P.arquivo || "", criado_por: me }).select("id").single();
+    const { data: env, error } = await sb.from("full_envios").insert({ nome: P.nome, arquivo: P.arquivo || "", criado_por: me, canal: canalCarregado }).select("id").single();
     if(error) throw error;
     const rows = [...mapa.values()].map((i, k) => ({ envio_id: env.id, sku: i.sku, descricao: i.descricao, tipo: i.tipo, quantidade: i.quantidade, ordem: k }));
     const r = await sb.from("full_itens").insert(rows);
@@ -2110,7 +2158,7 @@ $("fullNovo").addEventListener("click", () => {
 });
 $("fullFechar").addEventListener("click", () => { $("fullImport").hidden = true; fullPrevia = null; renderPrevia(); $("fullFile").value = ""; $("fullMsg").textContent = ""; });
 $("fullManual").addEventListener("click", () => {
-  fullPrevia = { nome: "Full " + fmtData(hoje()), arquivo: "", itens: [linhaVazia()], bruto: null };
+  fullPrevia = { nome: nomePadrao(null), arquivo: "", itens: [linhaVazia()], bruto: null };
   $("fullMsg").className = "msg"; $("fullMsg").textContent = "Digite os SKUs abaixo.";
   renderPrevia();
 });
@@ -2124,8 +2172,11 @@ $("fullFile").addEventListener("change", async e => {
     if(!linhas.length){ msg.className = "msg err"; msg.textContent = "Não encontrei texto neste PDF. Ele parece ser uma imagem escaneada; use “Digitar sem PDF”."; return; }
     const ehFullML = linhas.some(l => /C[oó]digo ML/i.test(l));
     const itens = ehFullML ? extrairItensFullML(paginas) : extrairItens(linhas);
-    const frete = (linhas.join(" ").match(/Frete\s*#\s*(\d+)/i) || [])[1];
-    fullPrevia = { nome: frete ? `Full #${frete}` : "Full " + fmtData(hoje()), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
+    const txtPdf = linhas.join(" ");
+    const numero = canalCarregado === "dist"
+      ? (txtPdf.match(/pedido\s*(?:de\s*venda\s*)?(?:n[º°o.]*\s*)?[:#-]?\s*(\d{3,})/i) || [])[1]
+      : (txtPdf.match(/Frete\s*#\s*(\d+)/i) || [])[1];
+    fullPrevia = { nome: nomePadrao(numero), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
     if(itens.length){
       const semQtd = itens.filter(i => !(Number(i.quantidade) > 0) || !i.sku).length;
       const tot = totaisDoPdf(linhas);
