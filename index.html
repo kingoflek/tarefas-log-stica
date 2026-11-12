@@ -1102,18 +1102,19 @@ function carregarPdfJs(){
 async function lerLinhasPdf(file){
   const lib = await carregarPdfJs();
   const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
-  const linhas = [];
+  const linhas = [], paginas = [];
   for(let p = 1; p <= pdf.numPages; p++){
     const tc = await (await pdf.getPage(p)).getTextContent();
     const its = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ x: i.transform[4], y: i.transform[5], w: i.width, s: i.str }));
     its.sort((a, b) => b.y - a.y || a.x - b.x);
+    paginas.push(its);
     let atual = null;
     for(const it of its){
       if(atual && Math.abs(atual.y - it.y) <= 3) atual.cel.push(it);
       else { atual = { y: it.y, cel: [it] }; linhas.push(atual); }
     }
   }
-  return linhas.map(l => {
+  const texto = linhas.map(l => {
     l.cel.sort((a, b) => a.x - b.x);
     let txt = "", fim = null;
     for(const c of l.cel){
@@ -1122,6 +1123,64 @@ async function lerLinhasPdf(file){
     }
     return txt.replace(/\s+/g, " ").trim();
   }).filter(Boolean);
+  return { linhas: texto, paginas };
+}
+
+/* Leitor do PDF "Lista de produtos e instruções de preparação" do Full.
+   Cada produto começa em "Código ML:" na coluna PRODUTO; a quantidade fica na coluna UNIDADES,
+   na mesma faixa de altura. O SKU pode quebrar para a linha de baixo. */
+function extrairItensFullML(paginas){
+  const itens = [];
+  let colQ = null, colId = null;                        // início das colunas UNIDADES e IDENTIFICAÇÃO
+  const juntar = arr => arr.slice().sort((a, b) => b.y - a.y || a.x - b.x).map(i => i.s).join(" ").replace(/\s+/g, " ").trim();
+  for(const its of paginas){
+    const hQ = its.find(i => /^\s*UNIDADES\s*$/i.test(i.s));
+    const hId = its.find(i => /^\s*IDENTIFI/i.test(i.s));
+    if(hQ){ colQ = hQ.x; colId = hId ? hId.x : hQ.x + 60; }
+    if(colQ == null) continue;
+    const topoTabela = hQ ? hQ.y - 4 : Infinity;
+    const naProd = i => i.x < colQ - 5 && i.y < topoTabela;
+    const naQtd = i => i.x >= colQ - 5 && i.x < colId - 5 && i.y < topoTabela;
+    const inicios = its.filter(i => naProd(i) && /C[oó]digo ML/i.test(i.s)).sort((a, b) => b.y - a.y);
+    // continuação de um produto que começou na página anterior
+    const prim = inicios.length ? inicios[0].y + 8 : -Infinity;
+    const ant = itens[itens.length - 1];
+    if(ant){
+      const resto = its.filter(i => i.y > prim && i.y < topoTabela);
+      const q = resto.find(i => naQtd(i) && /^\d+$/.test(i.s.trim()));
+      if(ant.quantidade === "" && q) ant.quantidade = Number(q.s);
+      const txt = juntar(resto.filter(naProd));
+      if(txt && !/Lista de produtos|Frete #|Produtos do envio/i.test(txt)) ant._txt += " " + txt;
+    }
+    inicios.forEach((ini, k) => {
+      const topo = ini.y + 8, base = k + 1 < inicios.length ? inicios[k + 1].y + 8 : -Infinity;
+      const faixa = its.filter(i => i.y <= topo && i.y > base);
+      const q = faixa.find(i => naQtd(i) && /^\d+$/.test(i.s.trim()));
+      itens.push({ _txt: juntar(faixa.filter(naProd)), quantidade: q ? Number(q.s) : "" });
+    });
+  }
+  const mapa = new Map();
+  for(const it of itens){
+    const t = it._txt;
+    const mSku = t.match(/SKU:\s*([A-Za-z0-9][A-Za-z0-9\-_.\/]*)/i);
+    const mMl = t.match(/C[oó]digo ML:\s*([A-Z0-9]+)/i);
+    const sku = mSku ? mSku[1].toUpperCase() : "";
+    let titulo = mSku ? t.slice(mSku.index + mSku[0].length) : t.replace(/C[oó]digo (ML|universal):\s*\S+/gi, "");
+    titulo = titulo.replace(/\s+/g, " ").trim();
+    const desc = (titulo + (mMl ? ` · Cód. ML ${mMl[1]}` : "")).slice(0, 200);
+    const chave = sku || ("?" + mapa.size);
+    const ja = mapa.get(chave);
+    if(ja && sku){ ja.quantidade = (Number(ja.quantidade) || 0) + (Number(it.quantidade) || 0); continue; }
+    mapa.set(chave, { sku, descricao: desc, quantidade: it.quantidade, tipo: classificar(sku + " " + titulo) });
+  }
+  return [...mapa.values()];
+}
+
+// Totais impressos no topo do PDF, para conferir se nada ficou de fora
+function totaisDoPdf(linhas){
+  const t = linhas.join(" ");
+  const p = t.match(/Produtos do envio:\s*(\d+)/i), u = t.match(/Total de unidades:\s*(\d+)/i);
+  return { produtos: p ? Number(p[1]) : null, unidades: u ? Number(u[1]) : null };
 }
 
 const RX_SKU = /\bSKU\b\s*[:#\-]?\s*([A-Za-z0-9][A-Za-z0-9\-_.\/]*)/i;
@@ -1131,6 +1190,7 @@ const pareceSku = tok => /^[A-Z0-9][A-Z0-9\-_.\/]{2,}$/i.test(tok) && /\d/.test(
 
 function classificar(txt){
   const s = " " + semAcento(txt).toUpperCase().replace(/[^A-Z0-9]+/g, " ") + " ";
+  if(/^\s*PAR[A-Z]*\d/.test(s)) return "par";            // SKU começando com PAR (ex.: PARON0172D)
   if(/ (PAR|PARES|JOGO|AMBOS LADOS|2 LADOS|LE LD|LD LE|ESQ DIR|DIR ESQ) /.test(s)) return "par";
   if(/ (LE|LD|ESQ|DIR|ESQUERDO|ESQUERDA|DIREITO|DIREITA|LADO|MOTORISTA|PASSAGEIRO) /.test(s)) return "lado";
   return "";
@@ -1264,14 +1324,28 @@ $("fullFile").addEventListener("change", async e => {
   msg.className = "msg"; msg.textContent = "Lendo o PDF…";
   fullPrevia = null; renderPrevia();
   try{
-    const linhas = await lerLinhasPdf(f);
+    const { linhas, paginas } = await lerLinhasPdf(f);
     if(!linhas.length){ msg.className = "msg err"; msg.textContent = "Não encontrei texto neste PDF. Ele parece ser uma imagem escaneada; use “Digitar sem PDF”."; return; }
-    const itens = extrairItens(linhas);
-    fullPrevia = { nome: "Full " + fmtData(hoje()), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
+    const ehFullML = linhas.some(l => /C[oó]digo ML/i.test(l));
+    const itens = ehFullML ? extrairItensFullML(paginas) : extrairItens(linhas);
+    const frete = (linhas.join(" ").match(/Frete\s*#\s*(\d+)/i) || [])[1];
+    fullPrevia = { nome: frete ? `Full #${frete}` : "Full " + fmtData(hoje()), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
     if(itens.length){
       const sem = itens.filter(i => !i.tipo).length;
-      msg.className = "msg ok";
-      msg.textContent = `Encontrei ${itens.length} SKUs. Confira a lista, ajuste o que precisar` + (sem === 1 ? " e escolha o tipo do item marcado em vermelho" : sem ? ` e escolha o tipo dos ${sem} itens marcados em vermelho` : "") + `. Depois clique em “Salvar envio”.`;
+      const semQtd = itens.filter(i => !(Number(i.quantidade) > 0) || !i.sku).length;
+      const tot = totaisDoPdf(linhas);
+      const unid = itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+      let conf = "";
+      if(tot.produtos != null || tot.unidades != null){
+        const bateP = tot.produtos == null || tot.produtos === itens.length, bateU = tot.unidades == null || tot.unidades === unid;
+        conf = bateP && bateU
+          ? ` ✓ Bate com o PDF: ${itens.length} produtos e ${unid} unidades.`
+          : ` ⚠ O PDF diz ${tot.produtos ?? "?"} produtos e ${tot.unidades ?? "?"} unidades; li ${itens.length} produtos e ${unid} unidades. Confira a lista.`;
+      }
+      msg.className = conf.includes("⚠") || semQtd ? "msg err" : "msg ok";
+      msg.textContent = `Encontrei ${itens.length} SKUs.` + conf + ` Ajuste o que precisar` +
+        (sem === 1 ? ", escolha o tipo do item marcado em vermelho" : sem ? `, escolha o tipo dos ${sem} itens marcados em vermelho` : "") +
+        (semQtd ? ` e preencha SKU ou quantidade que faltaram em ${semQtd} linha${semQtd > 1 ? "s" : ""}` : "") + `. Depois clique em “Salvar envio”.`;
     } else {
       msg.className = "msg err";
       msg.textContent = "Não consegui identificar os SKUs neste PDF. Digite-os abaixo; o texto lido está no fim, em “Ver o texto lido do PDF”.";
