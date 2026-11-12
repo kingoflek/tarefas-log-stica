@@ -9,7 +9,7 @@ select u.id, v.nome, v.email, v.gestor, v.conferente, v.ordem
 from (values
   ('RENAN',           'renan@logistica.local',           true,  false, 1),
   ('CARLOS HENRIQUE', 'carlos.henrique@logistica.local', true,  true,  2),
-  ('DANILO',          'danilo@logistica.local',          true,  true,  3),
+  ('DANILO',          'danilo@logistica.localca',        true,  true,  3),
   ('VINICIUS',        'vinicius@logistica.local',        false, false, 4),
   ('GUILHERME',       'guilherme@logistica.local',       false, false, 5),
   ('RODRIGO',         'rodrigo@logistica.local',         false, false, 6),
