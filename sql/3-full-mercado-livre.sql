@@ -99,21 +99,17 @@ alter table public.full_itens drop constraint if exists full_itens_status_check;
 alter table public.full_itens add constraint full_itens_status_check
   check (status in ('separando','producao','concluido'));
 
--- Transferência do Base (WMS): o item só sai de "Separando" depois de marcada
+-- Transferência do Base (WMS): quem está separando marca a qualquer momento;
+-- o item só pode ficar "Concluído" depois de marcada
 alter table public.full_itens add column if not exists transferido boolean not null default false;
 alter table public.full_itens add column if not exists transferido_por text;
 alter table public.full_itens add column if not exists transferido_em timestamptz;
 
--- itens que já tinham avançado antes desta regra contam como transferidos
-update public.full_itens
-   set transferido = true, transferido_por = coalesce(status_por, '(antes da regra)'), transferido_em = coalesce(status_em, now())
- where not transferido and (status <> 'separando' or produzido > 0);
-
 create or replace function public.full_item_transferencia() returns trigger
 language plpgsql set search_path = public as $$
 begin
-  if not new.transferido and (new.status <> 'separando' or new.produzido > 0) then
-    raise exception 'Marque "Fez a transferência do Base" antes de avançar este item' using errcode = 'P0001';
+  if not new.transferido and new.status = 'concluido' then
+    raise exception 'Marque "Fez a transferência do Base" antes de concluir este item' using errcode = 'P0001';
   end if;
   return new;
 end $$;

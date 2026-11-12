@@ -1144,9 +1144,10 @@ async function carregarFull(){
 /* Status de cada item do Full */
 const FULL_ST = [["separando", "Separando"], ["producao", "Em produção"], ["concluido", "Concluído"]];
 const FULL_ST_ORD = { separando: 0, producao: 1, concluido: 2 };
-// antes de marcar "Fez a transferência do Base" o item fica "aguardando" e não avança
-const stDe = i => !i.transferido ? "aguardando" : FULL_ST_ORD[i.status] != null ? i.status : "separando";
-const ST_LBL = { aguardando: "Aguardando transferência", separando: "Separando", producao: "Em produção", concluido: "Concluído" };
+const stDe = i => FULL_ST_ORD[i.status] != null ? i.status : "separando";
+const ST_LBL = { separando: "Separando", producao: "Em produção", concluido: "Concluído" };
+// "Fez a transferência do Base" fica sempre aberta para quem separa; sem ela o item não pode ser Concluído
+const semTransf = i => !i.transferido && stDe(i) !== "concluido";
 
 function atualizarFullBadge(){
   $("fullBadge").textContent = fullItens.filter(i => stDe(i) !== "concluido").length || "";
@@ -1162,30 +1163,30 @@ function posHTML(sku){
 }
 
 function fullItemHTML(i, g){
-  const st = stDe(i), ok = st === "concluido", trava = !i.transferido;
+  const st = stDe(i), ok = st === "concluido";
   const p = Math.min(100, Math.round(100 * i.produzido / i.quantidade));
-  const id = esc(i.id), dis = trava ? "disabled" : "";
-  // só dá para desmarcar a transferência enquanto o item não avançou
-  const podeDesmarcar = !i.transferido || (i.status === "separando" && !i.produzido);
+  const id = esc(i.id);
   return `<div class="fitem st-${st} ${ok ? "ok" : ""}" data-id="${id}">
     <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${esc(i.sku)}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
     ${posHTML(i.sku)}
-    <label class="fi-transf ${i.transferido ? "feito" : ""}">
-      <input type="checkbox" data-fa="transf" ${i.transferido ? "checked" : ""} ${podeDesmarcar ? "" : "disabled"}>
+    <label class="fi-transf ${i.transferido ? "feito" : ""}" ${ok ? `title="Item concluído: para desmarcar, volte o status antes"` : ""}>
+      <input type="checkbox" data-fa="transf" ${i.transferido ? "checked" : ""} ${ok ? "disabled" : ""}>
       <span><b>Fez a transferência do Base</b>${i.transferido && i.transferido_por
         ? `<small>${esc(i.transferido_por)}${i.transferido_em ? " em " + fmtDT(Date.parse(i.transferido_em)) : ""}</small>`
-        : `<small>Marque depois de transferir no WMS. Só então o item libera para separar.</small>`}</span>
+        : `<small>Marque assim que transferir no WMS. Sem isso o item não pode ser concluído.</small>`}</span>
     </label>
     <div class="fi-st" role="group" aria-label="Status de ${esc(i.sku)}">
-      ${FULL_ST.map(([k, lbl]) => `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}" ${dis}>${lbl}</button>`).join("")}
+      ${FULL_ST.map(([k, lbl]) => {
+        const bloq = k === "concluido" && !i.transferido;
+        return `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}" ${bloq ? `disabled title="Marque “Fez a transferência do Base” primeiro"` : ""}>${bloq ? "🔒 " : ""}${lbl}</button>`;
+      }).join("")}
     </div>
-    ${trava ? `<div class="fi-quem">🔒 Aguardando transferência do Base</div>`
-      : i.status_por ? `<div class="fi-quem">${ST_LBL[st]} · ${esc(i.status_por)} em ${fmtDT(Date.parse(i.status_em))}</div>` : ""}
+    ${i.status_por ? `<div class="fi-quem">${ST_LBL[st]} · ${esc(i.status_por)} em ${fmtDT(Date.parse(i.status_em))}</div>` : ""}
     <div class="fi-qty">
-      <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}" ${dis}>−</button>
-      <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}" ${dis}>
+      <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}">−</button>
+      <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}">
       <span>/ ${i.quantidade}</span>
-      <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}" ${dis}>+</button>
+      <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}">+</button>
     </div>
     <div class="fi-bar"><i style="width:${p}%"></i></div>
     ${g ? `<div class="fi-g">${fullDelItem === i.id
@@ -1224,7 +1225,7 @@ function renderFull(){
         <select id="fullFiltroSt" style="width:auto;min-width:170px;background:var(--surface)">
           <option value="">Todos os status</option>
           <option value="abertos">Não concluídos</option>
-          <option value="aguardando">Aguardando transferência</option>
+          <option value="semtransf">Sem transferência do Base</option>
           ${FULL_ST.map(([k, lbl]) => `<option value="${k}">${lbl}</option>`).join("")}
         </select>
         <button type="button" class="btn btn-ghost btn-sm" data-fa="pdf">⬇ Baixar PDF</button>
@@ -1246,7 +1247,7 @@ function renderFull(){
   const feitas = fullItens.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
   const nSt = k => fullItens.filter(i => stDe(i) === k).length;
   $("fullResumo").innerHTML =
-    `<div class="kpi k-aguardando"><span>Aguardando transf.</span><b>${nSt("aguardando")}</b></div>` +
+    `<div class="kpi k-aguardando"><span>Sem transferência</span><b>${fullItens.filter(semTransf).length}</b></div>` +
     `<div class="kpi k-separando"><span>Separando</span><b>${nSt("separando")}</b></div>` +
     `<div class="kpi k-producao"><span>Em produção</span><b>${nSt("producao")}</b></div>` +
     `<div class="kpi k-concluido"><span>Concluídos</span><b>${nSt("concluido")} de ${fullItens.length}</b></div>` +
@@ -1261,13 +1262,13 @@ function renderFull(){
     <div class="fprog-bar" role="progressbar" aria-label="Conclusão do Full" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${tot ? 100 * feitas / tot : 0}%"></i></div>`;
 
   const q = semAcento(fullBusca.trim());
-  const passaSt = i => !fullFiltroSt || (fullFiltroSt === "abertos" ? stDe(i) !== "concluido" : stDe(i) === fullFiltroSt);
+  const passaSt = i => !fullFiltroSt || (fullFiltroSt === "abertos" ? stDe(i) !== "concluido" : fullFiltroSt === "semtransf" ? semTransf(i) : stDe(i) === fullFiltroSt);
   const vis = fullItens.filter(i => (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)) && passaSt(i));
   const coluna = (tipo, titulo) => {
     const todos = fullItens.filter(i => tipoDe(i) === tipo), its = vis.filter(i => tipoDe(i) === tipo);
     const pq = todos.reduce((s, i) => s + i.quantidade, 0), pp = todos.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
-    // em produção primeiro, depois separando, aguardando transferência, concluídos por último
-    const ordemSt = { producao: 0, separando: 1, aguardando: 2, concluido: 3 };
+    // em produção primeiro, depois separando, concluídos por último
+    const ordemSt = { producao: 0, separando: 1, concluido: 2 };
     its.sort((a, b) => ordemSt[stDe(a)] - ordemSt[stDe(b)] || a.ordem - b.ordem);
     return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${todos.length} SKUs · ${pp} de ${pq} peças</span></div>
       ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${todos.length ? "Nenhum item neste filtro." : "Nenhum item neste envio."}</div>`}</section>`;
@@ -1282,7 +1283,7 @@ async function salvarItemFull(it, patch, erroPadrao){
   const { data, error } = await sb.from("full_itens").update(patch).eq("id", it.id).select("id");
   if(error || !data || !data.length){
     Object.assign(it, antes); renderFull();
-    showBanner(error && /transfer[eê]ncia do Base/i.test(error.message || "") ? "Marque “Fez a transferência do Base” antes de avançar este item."
+    showBanner(error && /transfer[eê]ncia do Base/i.test(error.message || "") ? "Marque “Fez a transferência do Base” antes de concluir este item."
       : errMsg(error || { code: "sem_permissao" }, erroPadrao));
   }
 }
@@ -1290,29 +1291,34 @@ const marcaStatus = st => ({ status: st, status_por: me, status_em: new Date().t
 
 function setTransferido(id, marcado){
   const it = fullItens.find(x => x.id === id); if(!it) return;
-  if(!marcado && (it.status !== "separando" || it.produzido > 0)){ renderFull(); return; }   // já avançou: não desmarca
-  const agora = new Date().toISOString();
+  if(!marcado && stDe(it) === "concluido"){ renderFull(); return; }   // concluído: volte o status antes de desmarcar
   const patch = marcado
-    ? { transferido: true, transferido_por: me, transferido_em: agora, ...marcaStatus("separando") }
+    ? { transferido: true, transferido_por: me, transferido_em: new Date().toISOString() }
     : { transferido: false, transferido_por: null, transferido_em: null };
   return salvarItemFull(it, patch, "Não foi possível salvar a transferência. Tente de novo.");
 }
 
 function setProduzido(id, val){
   const it = fullItens.find(x => x.id === id); if(!it) return;
-  if(!it.transferido){ renderFull(); return; }
   val = Math.max(0, Math.floor(Number(val) || 0));
   if(val === it.produzido){ renderFull(); return; }
   const patch = { produzido: val };
-  // completou a quantidade → Concluído; voltou a faltar peça num concluído → Em produção
-  if(val >= it.quantidade && stDe(it) !== "concluido") Object.assign(patch, marcaStatus("concluido"));
+  // completou a quantidade → Concluído (só com a transferência marcada); voltou a faltar peça → Em produção
+  if(val >= it.quantidade && stDe(it) !== "concluido"){
+    if(it.transferido) Object.assign(patch, marcaStatus("concluido"));
+    else {
+      if(stDe(it) === "separando") Object.assign(patch, marcaStatus("producao"));
+      showBanner(`${it.sku}: quantidade completa. Marque “Fez a transferência do Base” para concluir.`);
+    }
+  }
   else if(val < it.quantidade && stDe(it) === "concluido") Object.assign(patch, marcaStatus("producao"));
   else if(val > 0 && stDe(it) === "separando") Object.assign(patch, marcaStatus("producao"));
   return salvarItemFull(it, patch, "Não foi possível salvar a quantidade. Tente de novo.");
 }
 
 function setStatusFull(id, st){
-  const it = fullItens.find(x => x.id === id); if(!it || !it.transferido || stDe(it) === st) return;
+  const it = fullItens.find(x => x.id === id); if(!it || stDe(it) === st) return;
+  if(st === "concluido" && !it.transferido){ showBanner("Marque “Fez a transferência do Base” antes de concluir este item."); return; }
   const patch = marcaStatus(st);
   if(st === "concluido" && it.produzido < it.quantidade) patch.produzido = it.quantidade;   // concluído = quantidade toda feita
   return salvarItemFull(it, patch, "Não foi possível mudar o status. Tente de novo.");
