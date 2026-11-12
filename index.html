@@ -404,6 +404,10 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
         <h2>Posições do WMS</h2>
         <p class="full-hint">Exporte do WMS o relatório de estoque por posição (Excel ou CSV) e escolha o arquivo aqui. As posições atuais são trocadas pelas do arquivo. Elas servem só para consulta: a retirada continua no WMS.</p>
         <p class="full-hint" id="wmsInfo"></p>
+        <div class="full-file" style="margin-bottom:10px">
+          <button type="button" class="btn btn-ghost btn-sm" id="wmsPdfBase">⬇ PDF da base completa</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="wmsPdfEnvio">⬇ PDF do envio aberto</button>
+        </div>
         <div class="full-file">
           <input type="file" id="wmsFile" accept=".xlsx,.xls,.csv,.txt">
           <button type="button" class="btn btn-ghost btn-sm" id="wmsFechar">Fechar</button>
@@ -1257,6 +1261,59 @@ async function baixarPdfFull(){
   }
   doc.save(`separacao-${envio.nome.replace(/[^\w\-]+/g, "-").replace(/^-|-$/g, "")}.pdf`);
 }
+
+// PDF de toda a base de posições do WMS, em ordem de posição
+async function baixarPdfWms(){
+  const JsPDF = await carregarJsPdf();
+  const rows = [];
+  for(let de = 0; ; de += 1000){                       // o Supabase entrega no máximo 1000 por vez
+    const { data, error } = await sb.from("wms_posicoes").select("sku,posicao,quantidade").order("posicao").order("sku").range(de, de + 999);
+    if(error) throw error;
+    rows.push(...data);
+    if(data.length < 1000) break;
+  }
+  if(!rows.length) throw new Error("vazio");
+  rows.sort((a, b) => a.posicao.localeCompare(b.posicao, "pt-BR", { numeric: true }) || a.sku.localeCompare(b.sku));
+  const envio = fullEnvios.find(e => e.id === fullSel);
+  const noEnvio = new Map(fullItens.map(i => [String(i.sku).trim().toUpperCase(), i]));
+  const doc = new JsPDF({ unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text("Base de posições do WMS", 14, 15);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`${rows.length} posições · ${new Set(rows.map(r => r.sku)).size} SKUs · gerado em ${new Date().toLocaleString("pt-BR")} por ${me}`, 14, 21);
+  if(wmsMeta) doc.text(`Importado em ${fmtDT(Date.parse(wmsMeta.em))} por ${wmsMeta.por || "—"}`, W - 14, 21, { align: "right" });
+  if(envio) doc.text(`Linhas destacadas: SKUs do envio ${envio.nome}`, 14, 26);
+  doc.setTextColor(0);
+  doc.autoTable({
+    startY: envio ? 30 : 26,
+    head: [["Posição", "SKU", "Qtd. na posição", envio ? `Pedido no ${envio.nome}` : ""]],
+    body: rows.map(r => { const it = noEnvio.get(r.sku); return [r.posicao, r.sku, fmtQtd(r.quantidade), it ? `${it.quantidade} un. · ${tipoDe(it) === "par" ? "Par" : "Só lado"}` : ""]; }),
+    theme: "grid",
+    styles: { font: "helvetica", fontSize: 9, cellPadding: 1.8, lineColor: [200, 205, 210] },
+    headStyles: { fillColor: [36, 57, 77], textColor: 255, fontStyle: "bold" },
+    columnStyles: { 0: { font: "courier", fontStyle: "bold", cellWidth: 45 }, 1: { font: "courier", cellWidth: 50 }, 2: { halign: "right", cellWidth: 32 } },
+    didParseCell: d => { if(d.section === "body" && noEnvio.has(d.row.raw[1])) d.cell.styles.fillColor = [253, 240, 200]; },
+    margin: { left: 14, right: 14, bottom: 14 }
+  });
+  const n = doc.getNumberOfPages();
+  for(let p = 1; p <= n; p++){
+    doc.setPage(p); doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(`Base de posições do WMS · página ${p} de ${n}`, W - 14, doc.internal.pageSize.getHeight() - 7, { align: "right" });
+  }
+  doc.save(`posicoes-wms-${hoje()}.pdf`);
+}
+async function botaoPdf(b, fn){
+  const txt = b.textContent; b.disabled = true; b.textContent = "Gerando PDF…";
+  try{ await fn(); }
+  catch(err){
+    showBanner(err && err.message === "jspdf" ? "Não foi possível carregar o gerador de PDF. Verifique a internet."
+      : err && err.message === "vazio" ? "Ainda não há posições do WMS importadas." : "Não foi possível gerar o PDF.");
+  }
+  finally{ b.disabled = false; b.textContent = txt; }
+}
+$("wmsPdfBase").addEventListener("click", e => botaoPdf(e.currentTarget, baixarPdfWms));
+$("wmsPdfEnvio").addEventListener("click", e => botaoPdf(e.currentTarget, baixarPdfFull));
 
 /* ---------- Posições do WMS (planilha lida no navegador com o SheetJS) ---------- */
 let xlsxPromise = null;
