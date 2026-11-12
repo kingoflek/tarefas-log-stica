@@ -1090,6 +1090,9 @@ function renderFull(){
       <div id="fullBody"></div>`;
     $("fullBusca").value = fullBusca; $("fullFiltroSt").value = fullFiltroSt;
   }
+  // se alguém está digitando uma quantidade, salva antes de redesenhar (evita erro ao trocar o HTML)
+  const foco = document.activeElement;
+  if(foco && $("fullBody").contains(foco)) foco.blur();
   $("fullDelBox").innerHTML = !g ? "" : fullDelEnvio
     ? `Excluir este envio inteiro? <button type="button" class="btn btn-danger btn-sm" data-fa="delSim">Sim, excluir</button> <button type="button" class="btn btn-ghost btn-sm" data-fa="delNao">Não</button>`
     : `<button type="button" class="btn btn-ghost btn-sm" data-fa="delEnvio">Excluir envio</button>`;
