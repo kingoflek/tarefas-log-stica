@@ -1065,6 +1065,7 @@ function renderFull(){
           <option value="abertos">Não concluídos</option>
           ${FULL_ST.map(([k, lbl]) => `<option value="${k}">${lbl}</option>`).join("")}
         </select>
+        <button type="button" class="btn btn-ghost btn-sm" data-fa="pdf">⬇ Baixar PDF</button>
         <span class="del" id="fullDelBox"></span>
       </div>
       <div class="kpis" id="fullResumo"></div>
@@ -1144,6 +1145,13 @@ $("fullConteudo").addEventListener("focusout", e => {
 $("fullConteudo").addEventListener("click", async e => {
   const b = e.target.closest("button[data-fa]"); if(!b || !sb) return;
   const fa = b.dataset.fa;
+  if(fa === "pdf"){
+    b.disabled = true; const txt = b.textContent; b.textContent = "Gerando PDF…";
+    try{ await baixarPdfFull(); }
+    catch(err){ showBanner(err && err.message === "jspdf" ? "Não foi possível carregar o gerador de PDF. Verifique a internet." : "Não foi possível gerar o PDF."); }
+    finally{ b.disabled = false; b.textContent = txt; }
+    return;
+  }
   if(fa === "delEnvio"){ fullDelEnvio = true; renderFull(); return; }
   if(fa === "delNao"){ fullDelEnvio = false; renderFull(); return; }
   if(fa === "delSim"){
@@ -1170,6 +1178,85 @@ $("fullConteudo").addEventListener("click", async e => {
     await carregarFull();
   }catch(err){ showBanner(errMsg(err, "Não foi possível salvar a alteração.")); b.disabled = false; }
 });
+
+/* ---------- PDF da lista de separação (jsPDF + AutoTable) ---------- */
+let jspdfPromise = null;
+function carregarScript(src){
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+function carregarJsPdf(){
+  if(window.jspdf && window.jspdf.jsPDF.API.autoTable) return Promise.resolve(window.jspdf.jsPDF);
+  if(!jspdfPromise) jspdfPromise = carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+    .then(() => carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"))
+    .then(() => window.jspdf.jsPDF)
+    .catch(() => { jspdfPromise = null; throw new Error("jspdf"); });
+  return jspdfPromise;
+}
+
+async function baixarPdfFull(){
+  const JsPDF = await carregarJsPdf();
+  const envio = fullEnvios.find(e => e.id === fullSel); if(!envio) return;
+  const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const STL = { separando: "Separando", producao: "Em produção", concluido: "Concluído" };
+  const posDe = i => wmsPos.get(String(i.sku).trim().toUpperCase()) || [];
+  // ordem de coleta: pela primeira posição; quem não tem posição vai para o fim
+  const ordenar = arr => arr.slice().sort((a, b) => {
+    const pa = posDe(a)[0], pb = posDe(b)[0];
+    if(!pa !== !pb) return pa ? -1 : 1;
+    return (pa && pb ? pa.posicao.localeCompare(pb.posicao, "pt-BR", { numeric: true }) : 0) || a.sku.localeCompare(b.sku);
+  });
+  const tot = fullItens.reduce((s, i) => s + i.quantidade, 0);
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text(`Lista de separação · ${envio.nome}`, 14, 15);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`${fullItens.length} SKUs · ${tot} peças · gerado em ${new Date().toLocaleString("pt-BR")} por ${me}`, 14, 21);
+  doc.text(wmsMeta ? `Posições do WMS importadas em ${fmtDT(Date.parse(wmsMeta.em))}` : "Nenhuma posição do WMS importada", W - 14, 21, { align: "right" });
+  doc.setTextColor(0);
+
+  let y = 27;
+  for(const [tipo, titulo] of [["par", "PARES"], ["lado", "SÓ LADO"]]){
+    const its = ordenar(fullItens.filter(i => tipoDe(i) === tipo));
+    if(!its.length) continue;
+    const pecas = its.reduce((s, i) => s + i.quantidade, 0);
+    doc.autoTable({
+      startY: y,
+      head: [[{ content: `${titulo}  ·  ${its.length} SKUs  ·  ${pecas} peças`, colSpan: 7, styles: { halign: "left", fillColor: tipo === "par" ? [36, 57, 77] : [242, 169, 0], textColor: tipo === "par" ? 255 : [27, 20, 0], fontSize: 11 } }],
+             ["", "SKU", "Descrição", "Qtd.", "Feitas", "Posições no WMS (qtd.)", "Status"]],
+      body: its.map(i => {
+        const ps = posDe(i);
+        return ["", i.sku, (i.descricao || "").replace(/\s*·\s*Cód\. ML.*$/, ""), i.quantidade, i.produzido,
+          ps.length ? ps.map(p => p.posicao + (p.quantidade != null ? `  (${fmtQtd(p.quantidade)})` : "")).join("\n") : "sem posição",
+          STL[stDe(i)]];
+      }),
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 2, valign: "middle", lineColor: [200, 205, 210] },
+      headStyles: { fillColor: [238, 241, 244], textColor: [22, 33, 44], fontStyle: "bold" },
+      columnStyles: {
+        0: { cellWidth: 8 }, 1: { cellWidth: 34, fontStyle: "bold", font: "courier" }, 2: { cellWidth: "auto" },
+        3: { cellWidth: 14, halign: "right" }, 4: { cellWidth: 14, halign: "right" },
+        5: { cellWidth: 58, font: "courier", fontStyle: "bold" }, 6: { cellWidth: 26 }
+      },
+      didParseCell: d => {
+        if(d.section === "body" && d.column.index === 5 && d.cell.raw === "sem posição") Object.assign(d.cell.styles, { font: "helvetica", fontStyle: "italic", textColor: [150, 150, 150] });
+      },
+      didDrawCell: d => {   // quadradinho para marcar à mão
+        if(d.section === "body" && d.column.index === 0){
+          const s = 3.6; doc.setDrawColor(80); doc.rect(d.cell.x + (d.cell.width - s) / 2, d.cell.y + (d.cell.height - s) / 2, s, s);
+        }
+      },
+      margin: { left: 14, right: 14, bottom: 14 }
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+  const n = doc.getNumberOfPages();
+  for(let p = 1; p <= n; p++){
+    doc.setPage(p); doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(`${envio.nome} · página ${p} de ${n}`, W - 14, doc.internal.pageSize.getHeight() - 7, { align: "right" });
+  }
+  doc.save(`separacao-${envio.nome.replace(/[^\w\-]+/g, "-").replace(/^-|-$/g, "")}.pdf`);
+}
 
 /* ---------- Posições do WMS (planilha lida no navegador com o SheetJS) ---------- */
 let xlsxPromise = null;
