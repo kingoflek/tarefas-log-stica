@@ -228,6 +228,56 @@ textarea{resize:vertical;min-height:72px}
 .tbar i.slow{background:var(--crit)}
 .tbar span{min-width:64px}
 .txt-crit{color:var(--crit);font-weight:700}
+/* Full Mercado Livre */
+.full-sel{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.full-sel select{width:auto;min-width:220px;background:var(--surface)}
+.full-sel .btn-primary{width:auto;font-size:14px}
+.full-imp{margin-bottom:14px}
+.full-hint{font-size:13px;color:var(--muted);margin:-6px 0 12px}
+.full-file{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.full-file input[type=file]{width:auto;flex:1;min-width:220px;background:var(--surface-2)}
+.ptable-wrap{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px}
+.ptable{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+.ptable th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.ptable td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ptable tr:last-child td{border-bottom:0}
+.ptable input,.ptable select{padding:6px 8px;font-size:13px}
+.ptable .q{width:80px}
+.ptable tr.falta select{border-color:var(--crit);background:var(--crit-bg)}
+.prev-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.prev-foot input{flex:1;min-width:200px}
+.prev-foot .btn-primary{width:auto}
+.prev-sum{font-size:13px;color:var(--muted);margin-top:10px}
+details.raw{margin-top:10px;font-size:12px;color:var(--muted)}
+details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);border-radius:8px;padding:8px;white-space:pre-wrap;font-family:var(--font-mono)}
+.full-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.full-tools input[type=search]{max-width:300px;flex:1;min-width:180px;background:var(--surface)}
+.full-tools label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer}
+.full-tools label input{width:auto}
+.full-tools .del{margin-left:auto}
+.full-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start}
+.fcol{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.fcol-h{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.fcol-h h3{font-family:var(--font-display);font-size:22px;text-transform:uppercase;letter-spacing:.03em;margin:0}
+.fcol-h span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fcol.par .fcol-h{border-top:4px solid var(--steel)}
+.fcol.lado .fcol-h{border-top:4px solid var(--accent)}
+.fitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}
+.fitem:last-child{border-bottom:0}
+.fitem.ok{background:var(--ok-bg)}
+.fi-sku{font-family:var(--font-mono);font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.fi-desc{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.fi-qty{display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+.fi-qty button{width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);cursor:pointer;font-weight:700;font-size:16px;line-height:1}
+.fi-qty input{width:58px;text-align:center;padding:5px 4px}
+.fi-qty span{font-size:13px;color:var(--muted);min-width:44px}
+.fi-bar{grid-column:1/-1;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.fi-bar i{display:block;height:100%;background:var(--accent)}
+.fitem.ok .fi-bar i{background:var(--ok)}
+.fi-g{grid-column:1/-1;display:flex;gap:6px}
+.fi-g button{font-size:12px;padding:3px 8px}
+.fcol .empty{border:0;border-radius:0}
+
 .met-busca{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .met-busca input{max-width:360px;flex:1;min-width:200px;background:var(--surface)}
 .met-busca span{font-size:13px;color:var(--muted)}
@@ -318,7 +368,32 @@ textarea{resize:vertical;min-height:72px}
       <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late">⚠ Atrasadas <span class="badge late" id="lateBadge"></span></button>
       <button type="button" role="tab" data-view="tarefas" aria-selected="true">Tarefas</button>
       <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden>Conferência <span class="badge" id="confBadge"></span></button>
+      <button type="button" role="tab" data-view="full" aria-selected="false" id="tabFull">Full ML <span class="badge" id="fullBadge"></span></button>
       <button type="button" role="tab" data-view="metricas" aria-selected="false" id="tabMet" hidden>Métricas</button>
+    </div>
+    <div id="fullSec" hidden>
+      <div class="met-top">
+        <h2>Full Mercado Livre</h2>
+        <div class="full-sel">
+          <label for="fullEnvio" class="sr">Envio</label>
+          <select id="fullEnvio"></select>
+          <button type="button" class="btn btn-primary btn-sm" id="fullNovo" hidden>+ Importar PDF</button>
+        </div>
+      </div>
+
+      <section class="panel full-imp" id="fullImport" hidden>
+        <h2>Importar envio do Full</h2>
+        <p class="full-hint">Escolha o PDF do envio. O site lê o arquivo aqui mesmo, no seu computador, e mostra os SKUs para você conferir antes de salvar.</p>
+        <div class="full-file">
+          <input type="file" id="fullFile" accept="application/pdf,.pdf">
+          <button type="button" class="btn btn-ghost btn-sm" id="fullManual">Digitar sem PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="fullFechar">Fechar</button>
+        </div>
+        <div class="msg" id="fullMsg" role="status"></div>
+        <div id="fullPrev"></div>
+      </section>
+
+      <div id="fullConteudo"></div>
     </div>
     <div id="metrics" hidden>
       <div class="met-top">
@@ -485,6 +560,7 @@ function entrar(user){
 async function logout(){
   pararDados();
   me = null; tasks = []; loaded = false; expanded.clear();
+  fullEnvios = []; fullItens = []; fullLoaded = false; fullPrevia = null; $("fullImport").hidden = true;
   $("pwPanel").hidden = true;
   try { await sb.auth.signOut(); } catch {}
   closeAuth(); showApp();
@@ -586,12 +662,13 @@ function syncTabs(){
   document.querySelector(".filters .seg").hidden = view==="atrasadas";
   $("listTitle").textContent = view==="conferencia" ? "Conferência" : view==="atrasadas" ? "Atrasadas" : (isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas");
   $("listTitle").style.color = view==="atrasadas" ? "var(--crit)" : "";
-  const met = view==="metricas", g = isGestor(me);
-  $("metrics").hidden = !met;
+  const g = isGestor(me), full = view==="full", met = view==="metricas" || full;  // telas de largura toda
+  $("metrics").hidden = view!=="metricas";
+  $("fullSec").hidden = !full;
   document.querySelector(".list-head").hidden = met;
   document.querySelector(".filters").hidden = met;
   $("tasks").hidden = met;
-  $("formPanel").hidden = !g || met;           // métricas usam a largura toda
+  $("formPanel").hidden = !g || met;
   $("app").className = g && !met ? "gestor" : "";
 }
 document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
@@ -622,6 +699,7 @@ function render(){
   $("confBadge").textContent = tasks.filter(t => t.status==="concluida" && !t.conferida).length || "";
   $("lateBadge").textContent = meus.filter(atrasada).length || "";
   if(view==="metricas"){ renderMetricas(); return; }
+  if(view==="full"){ renderFull(); return; }
 
   if(g){
     const cnt = {}; tasks.forEach(t => { if(t.status!=="concluida") cnt[t.responsavel]=(cnt[t.responsavel]||0)+1; });
@@ -843,6 +921,368 @@ $("metTable").addEventListener("click", e => {
   metOrd = b.dataset.ord; renderMetricas();
 });
 
+/* ---------- Full Mercado Livre ---------- */
+let fullEnvios = [], fullItens = [], fullLoaded = false, fullErro = false, fullSel = "";
+let fullBusca = "", fullOcultarOk = false, fullDelEnvio = false, fullDelItem = null;
+let fullPrevia = null, carregandoFull = 0, fullRenderPendente = false;
+
+async function carregarFull(){
+  if(!sb || !me) return;
+  const n = ++carregandoFull;
+  const env = await sb.from("full_envios").select("*").order("criado_em", { ascending: false });
+  if(n !== carregandoFull || !me) return;
+  if(env.error){ fullErro = true; fullLoaded = true; if(view === "full") renderFull(); return; }
+  fullErro = false;
+  fullEnvios = env.data || [];
+  if(!fullEnvios.some(e => e.id === fullSel)) fullSel = fullEnvios.length ? fullEnvios[0].id : "";
+  let itens = [];
+  if(fullSel){
+    const it = await sb.from("full_itens").select("*").eq("envio_id", fullSel).order("ordem");
+    if(n !== carregandoFull || !me) return;
+    if(it.error){ fullErro = true; fullLoaded = true; if(view === "full") renderFull(); return; }
+    itens = it.data || [];
+  }
+  fullItens = itens; fullLoaded = true;
+  // não redesenha enquanto alguém digita uma quantidade
+  const a = document.activeElement;
+  if(view === "full" && a && a.closest && a.closest("#fullBody .fi-qty")){ fullRenderPendente = true; atualizarFullBadge(); return; }
+  if(view === "full") renderFull(); else atualizarFullBadge();
+}
+
+function atualizarFullBadge(){
+  $("fullBadge").textContent = fullItens.filter(i => i.produzido < i.quantidade).length || "";
+}
+
+function fullItemHTML(i, g){
+  const ok = i.produzido >= i.quantidade;
+  const p = Math.min(100, Math.round(100 * i.produzido / i.quantidade));
+  const id = esc(i.id);
+  return `<div class="fitem ${ok ? "ok" : ""}" data-id="${id}">
+    <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${esc(i.sku)}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
+    <div class="fi-qty">
+      <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}">−</button>
+      <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}">
+      <span>/ ${i.quantidade}</span>
+      <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}">+</button>
+    </div>
+    <div class="fi-bar"><i style="width:${p}%"></i></div>
+    ${g ? `<div class="fi-g"><button type="button" class="btn btn-ghost btn-sm" data-fa="tipo">Mover para ${i.tipo === "par" ? "Só lado" : "Pares"}</button>${fullDelItem === i.id
+      ? `<button type="button" class="btn btn-danger btn-sm" data-fa="excluirSim">Confirmar exclusão</button><button type="button" class="btn btn-ghost btn-sm" data-fa="excluirNao">Cancelar</button>`
+      : `<button type="button" class="btn btn-ghost btn-sm" data-fa="excluir">Excluir</button>`}</div>` : ""}
+  </div>`;
+}
+
+function renderFull(){
+  if(!me) return;
+  fullRenderPendente = false;
+  const g = isGestor(me);
+  $("fullNovo").hidden = !g;
+  if(!g) $("fullImport").hidden = true;
+  $("fullEnvio").innerHTML = fullEnvios.length
+    ? fullEnvios.map(e => `<option value="${esc(e.id)}" ${e.id === fullSel ? "selected" : ""}>${esc(e.nome)} · ${fmtDT(Date.parse(e.criado_em))}</option>`).join("")
+    : `<option value="">Nenhum envio</option>`;
+  $("fullEnvio").disabled = !fullEnvios.length;
+  atualizarFullBadge();
+
+  const box = $("fullConteudo");
+  if(!fullLoaded){ box.innerHTML = `<div class="empty"><strong>Carregando envios…</strong></div>`; return; }
+  if(fullErro){ box.innerHTML = `<div class="empty"><strong>Não foi possível carregar o Full</strong>Verifique a conexão; o site tenta de novo sozinho.</div>`; return; }
+  if(!fullEnvios.length){
+    box.innerHTML = `<div class="empty"><strong>Nenhum envio do Full ainda</strong>${g ? "Clique em “+ Importar PDF” para cadastrar o primeiro envio." : "Quando um gestor importar um envio, os SKUs para produzir aparecem aqui."}</div>`;
+    return;
+  }
+  if(!$("fullBody")){
+    box.innerHTML = `<div class="full-tools">
+        <input type="search" id="fullBusca" placeholder="🔍 Pesquisar SKU ou descrição…" aria-label="Pesquisar SKU ou descrição" maxlength="60">
+        <label><input type="checkbox" id="fullOcultar"> Esconder os já concluídos</label>
+        <span class="del" id="fullDelBox"></span>
+      </div>
+      <div class="kpis" id="fullResumo"></div>
+      <div id="fullBody"></div>`;
+    $("fullBusca").value = fullBusca; $("fullOcultar").checked = fullOcultarOk;
+  }
+  $("fullDelBox").innerHTML = !g ? "" : fullDelEnvio
+    ? `Excluir este envio inteiro? <button type="button" class="btn btn-danger btn-sm" data-fa="delSim">Sim, excluir</button> <button type="button" class="btn btn-ghost btn-sm" data-fa="delNao">Não</button>`
+    : `<button type="button" class="btn btn-ghost btn-sm" data-fa="delEnvio">Excluir envio</button>`;
+
+  const tot = fullItens.reduce((s, i) => s + i.quantidade, 0);
+  const feitas = fullItens.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
+  const skusOk = fullItens.filter(i => i.produzido >= i.quantidade).length;
+  $("fullResumo").innerHTML =
+    `<div class="kpi"><span>SKUs prontos</span><b>${skusOk} de ${fullItens.length}</b></div>` +
+    `<div class="kpi"><span>Peças no envio</span><b>${tot}</b></div>` +
+    `<div class="kpi"><span>Peças produzidas</span><b>${feitas}</b></div>` +
+    `<div class="kpi ${tot - feitas ? "crit" : ""}"><span>Faltam</span><b>${tot - feitas}</b></div>` +
+    `<div class="kpi"><span>Concluído</span><b>${tot ? Math.round(100 * feitas / tot) : 0}%</b></div>`;
+
+  const q = semAcento(fullBusca.trim());
+  const vis = fullItens.filter(i => (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)) && !(fullOcultarOk && i.produzido >= i.quantidade));
+  const coluna = (tipo, titulo) => {
+    const todos = fullItens.filter(i => i.tipo === tipo), its = vis.filter(i => i.tipo === tipo);
+    const pq = todos.reduce((s, i) => s + i.quantidade, 0), pp = todos.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
+    its.sort((a, b) => (a.produzido >= a.quantidade) - (b.produzido >= b.quantidade) || a.ordem - b.ordem);
+    return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${todos.length} SKUs · ${pp} de ${pq} peças</span></div>
+      ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${todos.length ? "Nenhum item neste filtro." : "Nenhum item neste envio."}</div>`}</section>`;
+  };
+  $("fullBody").innerHTML = `<div class="full-cols">${coluna("par", "Pares")}${coluna("lado", "Só lado")}</div>`;
+}
+
+async function setProduzido(id, val){
+  const it = fullItens.find(x => x.id === id); if(!it) return;
+  val = Math.max(0, Math.floor(Number(val) || 0));
+  if(val === it.produzido){ renderFull(); return; }
+  const antes = it.produzido; it.produzido = val; renderFull();
+  const { data, error } = await sb.from("full_itens").update({ produzido: val }).eq("id", id).select("id");
+  if(error || !data || !data.length){
+    it.produzido = antes; renderFull();
+    showBanner(errMsg(error || { code: "sem_permissao" }, "Não foi possível salvar a quantidade. Tente de novo."));
+  }
+}
+
+$("fullEnvio").addEventListener("change", e => { fullSel = e.target.value; fullDelEnvio = false; fullDelItem = null; carregarFull(); });
+$("fullConteudo").addEventListener("input", e => { if(e.target.id === "fullBusca"){ fullBusca = e.target.value; renderFull(); } });
+$("fullConteudo").addEventListener("change", e => {
+  if(e.target.id === "fullOcultar"){ fullOcultarOk = e.target.checked; renderFull(); return; }
+  if(e.target.matches('input[data-fa="set"]')) setProduzido(e.target.closest(".fitem").dataset.id, e.target.value);
+});
+$("fullConteudo").addEventListener("keydown", e => { if(e.key === "Enter" && e.target.matches('input[data-fa="set"]')) e.target.blur(); });
+$("fullConteudo").addEventListener("focusout", e => {
+  if(e.target.matches('input[data-fa="set"]') && fullRenderPendente) setTimeout(() => { if(fullRenderPendente) renderFull(); }, 0);
+});
+$("fullConteudo").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-fa]"); if(!b || !sb) return;
+  const fa = b.dataset.fa;
+  if(fa === "delEnvio"){ fullDelEnvio = true; renderFull(); return; }
+  if(fa === "delNao"){ fullDelEnvio = false; renderFull(); return; }
+  if(fa === "delSim"){
+    b.disabled = true;
+    const { error } = await sb.from("full_envios").delete().eq("id", fullSel);
+    fullDelEnvio = false;
+    if(error){ showBanner(errMsg(error, "Não foi possível excluir o envio.")); renderFull(); return; }
+    fullSel = ""; await carregarFull(); return;
+  }
+  const el = b.closest(".fitem"); if(!el) return;
+  const it = fullItens.find(x => x.id === el.dataset.id); if(!it) return;
+  if(fa === "mais") return setProduzido(it.id, it.produzido + 1);
+  if(fa === "menos") return setProduzido(it.id, it.produzido - 1);
+  if(fa === "excluir"){ fullDelItem = it.id; renderFull(); return; }
+  if(fa === "excluirNao"){ fullDelItem = null; renderFull(); return; }
+  b.disabled = true;
+  try{
+    if(fa === "tipo"){
+      const { data, error } = await sb.from("full_itens").update({ tipo: it.tipo === "par" ? "lado" : "par" }).eq("id", it.id).select("id");
+      if(error || !data.length) throw error || { code: "sem_permissao" };
+    } else if(fa === "excluirSim"){
+      const { error } = await sb.from("full_itens").delete().eq("id", it.id);
+      if(error) throw error;
+      fullDelItem = null;
+    }
+    await carregarFull();
+  }catch(err){ showBanner(errMsg(err, "Não foi possível salvar a alteração.")); b.disabled = false; }
+});
+
+/* Importação do PDF (lido no próprio navegador com o PDF.js) */
+let pdfjsPromise = null;
+function carregarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(!pdfjsPromise) pdfjsPromise = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      res(window.pdfjsLib);
+    };
+    s.onerror = () => { pdfjsPromise = null; rej(new Error("pdfjs")); };
+    document.head.appendChild(s);
+  });
+  return pdfjsPromise;
+}
+
+// Junta os pedaços de texto de cada página em linhas; colunas distantes viram " | "
+async function lerLinhasPdf(file){
+  const lib = await carregarPdfJs();
+  const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const linhas = [];
+  for(let p = 1; p <= pdf.numPages; p++){
+    const tc = await (await pdf.getPage(p)).getTextContent();
+    const its = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ x: i.transform[4], y: i.transform[5], w: i.width, s: i.str }));
+    its.sort((a, b) => b.y - a.y || a.x - b.x);
+    let atual = null;
+    for(const it of its){
+      if(atual && Math.abs(atual.y - it.y) <= 3) atual.cel.push(it);
+      else { atual = { y: it.y, cel: [it] }; linhas.push(atual); }
+    }
+  }
+  return linhas.map(l => {
+    l.cel.sort((a, b) => a.x - b.x);
+    let txt = "", fim = null;
+    for(const c of l.cel){
+      if(fim != null) txt += c.x - fim > 12 ? " | " : (c.x - fim > 1 ? " " : "");
+      txt += c.s; fim = c.x + c.w;
+    }
+    return txt.replace(/\s+/g, " ").trim();
+  }).filter(Boolean);
+}
+
+const RX_SKU = /\bSKU\b\s*[:#\-]?\s*([A-Za-z0-9][A-Za-z0-9\-_.\/]*)/i;
+const RX_QTD = /(?:unidades?|qtd\.?|qtde\.?|quantidade)\s*[:\-]?\s*(\d{1,5})\b/i;
+const RX_QTD2 = /\b(\d{1,5})\s*(?:un\b|unid|unidades|p[cç]s\b|pe[cç]as)/i;
+const pareceSku = tok => /^[A-Z0-9][A-Z0-9\-_.\/]{2,}$/i.test(tok) && /\d/.test(tok) && /[A-Z]/i.test(tok);
+
+function classificar(txt){
+  const s = " " + semAcento(txt).toUpperCase().replace(/[^A-Z0-9]+/g, " ") + " ";
+  if(/ (PAR|PARES|JOGO|AMBOS LADOS|2 LADOS|LE LD|LD LE|ESQ DIR|DIR ESQ) /.test(s)) return "par";
+  if(/ (LE|LD|ESQ|DIR|ESQUERDO|ESQUERDA|DIREITO|DIREITA|LADO|MOTORISTA|PASSAGEIRO) /.test(s)) return "lado";
+  return "";
+}
+function acharQtd(l, sku){
+  const m = l.match(RX_QTD) || l.match(RX_QTD2);
+  if(m) return Number(m[1]);
+  const cels = l.split(" | ").map(c => c.trim());
+  for(let i = cels.length - 1; i >= 0; i--) if(/^\d{1,5}$/.test(cels[i]) && cels[i] !== sku) return Number(cels[i]);
+  return null;
+}
+function limparDesc(l, sku){
+  let s = l.replace(RX_SKU, " ").replace(RX_QTD, " ").replace(RX_QTD2, " ");
+  if(sku) s = s.split(sku).join(" ");
+  return s.split(" | ").map(c => c.trim()).filter(c => c && !/^\d{1,5}$/.test(c)).join(" ")
+    .replace(/\s+/g, " ").replace(/^[\s\-–:·|]+|[\s\-–:·|]+$/g, "").trim();
+}
+function extrairItens(linhas){
+  const comRotulo = linhas.some(l => RX_SKU.test(l));
+  const mapa = new Map();
+  linhas.forEach((l, idx) => {
+    let sku;
+    if(comRotulo){ const m = l.match(RX_SKU); if(!m) return; sku = m[1]; }
+    else { sku = l.split(/ \| | /).find(pareceSku); if(!sku) return; }
+    let qtd = acharQtd(l, sku);
+    if(qtd == null) for(const k of [idx + 1, idx - 1, idx + 2]){
+      if(linhas[k] && !(comRotulo ? RX_SKU.test(linhas[k]) : linhas[k].split(/ \| | /).some(pareceSku))){ qtd = acharQtd(linhas[k], null); if(qtd != null) break; }
+    }
+    let desc = limparDesc(l, sku);
+    if(desc.length < 4 && linhas[idx - 1] && !RX_SKU.test(linhas[idx - 1])) desc = limparDesc(linhas[idx - 1], null);
+    const chave = sku.toUpperCase();
+    const ja = mapa.get(chave);
+    if(ja){ ja.quantidade = (Number(ja.quantidade) || 0) + (qtd || 0); return; }
+    mapa.set(chave, { sku: chave, descricao: desc.slice(0, 200), quantidade: qtd || "", tipo: classificar(chave + " " + desc) });
+  });
+  return [...mapa.values()];
+}
+
+const linhaVazia = () => ({ sku: "", descricao: "", quantidade: "", tipo: "" });
+function renderPrevia(){
+  const P = fullPrevia, box = $("fullPrev");
+  if(!P){ box.innerHTML = ""; return; }
+  box.innerHTML = `
+    <div class="ptable-wrap"><table class="ptable">
+      <thead><tr><th>SKU</th><th>Descrição</th><th>Qtd.</th><th>Tipo</th><th></th></tr></thead>
+      <tbody>${P.itens.map((i, k) => `<tr class="${i.tipo ? "" : "falta"}" data-k="${k}">
+        <td><input data-pf="sku" value="${esc(i.sku)}" maxlength="60" style="font-family:var(--font-mono)" aria-label="SKU"></td>
+        <td><input data-pf="descricao" value="${esc(i.descricao)}" maxlength="200" aria-label="Descrição"></td>
+        <td><input class="q" type="number" min="1" data-pf="quantidade" value="${esc(i.quantidade)}" aria-label="Quantidade"></td>
+        <td><select data-pf="tipo" aria-label="Tipo"><option value="">Escolha…</option><option value="par" ${i.tipo === "par" ? "selected" : ""}>Par</option><option value="lado" ${i.tipo === "lado" ? "selected" : ""}>Só lado</option></select></td>
+        <td><button type="button" class="btn btn-ghost btn-sm" data-pa="rm" aria-label="Remover linha">✕</button></td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+    <div class="prev-foot">
+      <button type="button" class="btn btn-ghost btn-sm" data-pa="add">+ Adicionar linha</button>
+      <span style="font-size:13px;color:var(--muted)">Sem tipo → marcar como:</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-pa="todosPar">Par</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-pa="todosLado">Só lado</button>
+    </div>
+    <p class="prev-sum" id="prevSum"></p>
+    <div class="prev-foot">
+      <label class="sr" for="prevNome">Nome do envio</label>
+      <input id="prevNome" value="${esc(P.nome)}" maxlength="80" placeholder="Nome do envio (ex.: Full 12/11)">
+      <button type="button" class="btn btn-primary" data-pa="salvar">Salvar envio</button>
+    </div>
+    ${P.bruto ? `<details class="raw"><summary>Ver o texto lido do PDF (${P.bruto.length} linhas)</summary><pre>${esc(P.bruto.join("\n"))}</pre></details>` : ""}`;
+  resumoPrevia();
+}
+function resumoPrevia(){
+  const it = fullPrevia.itens, c = t => it.filter(i => i.tipo === t).length;
+  const sem = it.filter(i => !i.tipo).length;
+  $("prevSum").innerHTML = `${it.length} SKUs · ${c("par")} pares · ${c("lado")} só lado` + (sem ? ` · <b style="color:var(--crit)">${sem} sem tipo</b>` : "");
+}
+$("fullPrev").addEventListener("input", e => {
+  const tr = e.target.closest("tr[data-k]"); if(!tr || !e.target.dataset.pf) return;
+  fullPrevia.itens[tr.dataset.k][e.target.dataset.pf] = e.target.value;
+  if(e.target.dataset.pf === "tipo"){ tr.classList.toggle("falta", !e.target.value); resumoPrevia(); }
+});
+$("fullPrev").addEventListener("change", e => { if(e.target.id === "prevNome") fullPrevia.nome = e.target.value; });
+$("fullPrev").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-pa]"); if(!b) return;
+  const P = fullPrevia, pa = b.dataset.pa;
+  if(pa === "rm"){ P.itens.splice(Number(b.closest("tr").dataset.k), 1); if(!P.itens.length) P.itens.push(linhaVazia()); renderPrevia(); return; }
+  if(pa === "add"){ P.itens.push(linhaVazia()); renderPrevia(); const ins = $("fullPrev").querySelectorAll('input[data-pf="sku"]'); ins[ins.length - 1].focus(); return; }
+  if(pa === "todosPar" || pa === "todosLado"){ P.itens.forEach(i => { if(!i.tipo) i.tipo = pa === "todosPar" ? "par" : "lado"; }); renderPrevia(); return; }
+  if(pa === "salvar") salvarPrevia(b);
+});
+
+async function salvarPrevia(btn){
+  const msg = $("fullMsg"), fail = t => { msg.className = "msg err"; msg.textContent = t; };
+  const P = fullPrevia;
+  P.nome = $("prevNome").value.trim();
+  const itens = P.itens
+    .map(i => ({ sku: String(i.sku || "").trim().toUpperCase(), descricao: String(i.descricao || "").trim(), quantidade: Math.floor(Number(i.quantidade)), tipo: i.tipo }))
+    .filter(i => i.sku || i.quantidade);
+  if(!itens.length) return fail("Não há nenhum item para salvar.");
+  const ruim = itens.findIndex(i => !i.sku || !(i.quantidade > 0) || !i.tipo);
+  if(ruim >= 0) return fail(`Confira a linha ${ruim + 1}: ela precisa de SKU, quantidade maior que zero e tipo (Par ou Só lado).`);
+  if(!P.nome) return fail("Dê um nome ao envio.");
+  const mapa = new Map();   // junta SKUs repetidos do mesmo tipo
+  itens.forEach(i => { const k = i.sku + "|" + i.tipo; const ja = mapa.get(k); if(ja) ja.quantidade += i.quantidade; else mapa.set(k, { ...i }); });
+  btn.disabled = true; msg.className = "msg"; msg.textContent = "Salvando…";
+  try{
+    const { data: env, error } = await sb.from("full_envios").insert({ nome: P.nome, arquivo: P.arquivo || "", criado_por: me }).select("id").single();
+    if(error) throw error;
+    const rows = [...mapa.values()].map((i, k) => ({ envio_id: env.id, sku: i.sku, descricao: i.descricao, tipo: i.tipo, quantidade: i.quantidade, ordem: k }));
+    const r = await sb.from("full_itens").insert(rows);
+    if(r.error){ await sb.from("full_envios").delete().eq("id", env.id); throw r.error; }
+    fullPrevia = null; renderPrevia();
+    $("fullFile").value = ""; $("fullImport").hidden = true;
+    msg.textContent = "";
+    fullSel = env.id; fullBusca = ""; const bu = $("fullBusca"); if(bu) bu.value = "";
+    await carregarFull();
+  }catch(err){ fail(errMsg(err, "Não foi possível salvar o envio. Tente de novo.")); }
+  finally{ btn.disabled = false; }
+}
+
+$("fullNovo").addEventListener("click", () => {
+  const p = $("fullImport"); p.hidden = !p.hidden;
+  if(!p.hidden){ $("fullMsg").textContent = ""; $("fullFile").focus(); }
+});
+$("fullFechar").addEventListener("click", () => { $("fullImport").hidden = true; fullPrevia = null; renderPrevia(); $("fullFile").value = ""; $("fullMsg").textContent = ""; });
+$("fullManual").addEventListener("click", () => {
+  fullPrevia = { nome: "Full " + fmtData(hoje()), arquivo: "", itens: [linhaVazia()], bruto: null };
+  $("fullMsg").className = "msg"; $("fullMsg").textContent = "Digite os SKUs abaixo.";
+  renderPrevia();
+});
+$("fullFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  const msg = $("fullMsg");
+  msg.className = "msg"; msg.textContent = "Lendo o PDF…";
+  fullPrevia = null; renderPrevia();
+  try{
+    const linhas = await lerLinhasPdf(f);
+    if(!linhas.length){ msg.className = "msg err"; msg.textContent = "Não encontrei texto neste PDF. Ele parece ser uma imagem escaneada; use “Digitar sem PDF”."; return; }
+    const itens = extrairItens(linhas);
+    fullPrevia = { nome: "Full " + fmtData(hoje()), arquivo: f.name, itens: itens.length ? itens : [linhaVazia()], bruto: linhas };
+    if(itens.length){
+      const sem = itens.filter(i => !i.tipo).length;
+      msg.className = "msg ok";
+      msg.textContent = `Encontrei ${itens.length} SKUs. Confira a lista, ajuste o que precisar` + (sem === 1 ? " e escolha o tipo do item marcado em vermelho" : sem ? ` e escolha o tipo dos ${sem} itens marcados em vermelho` : "") + `. Depois clique em “Salvar envio”.`;
+    } else {
+      msg.className = "msg err";
+      msg.textContent = "Não consegui identificar os SKUs neste PDF. Digite-os abaixo; o texto lido está no fim, em “Ver o texto lido do PDF”.";
+    }
+    renderPrevia();
+  }catch(err){
+    msg.className = "msg err";
+    msg.textContent = err && err.message === "pdfjs" ? "Não foi possível carregar o leitor de PDF. Verifique a internet e tente de novo." : "Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido.";
+  }
+});
+
 function card(t, g){
   const done = t.status==="concluida";
   const late = atrasada(t);
@@ -980,16 +1420,19 @@ function iniciarDados(){
   pararDados();
   loadTimer = setTimeout(() => { if(!loaded) showBanner("O servidor ainda não respondeu. Verifique a conexão; as tarefas aparecem assim que conectar."); }, 10000);
   carregarTarefas();
+  carregarFull();
   canal = sb.channel("tarefas-tempo-real")
     .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => carregarTarefas())
+    .on("postgres_changes", { event: "*", schema: "public", table: "full_envios" }, () => carregarFull())
+    .on("postgres_changes", { event: "*", schema: "public", table: "full_itens" }, () => carregarFull())
     .subscribe();
-  poll = setInterval(carregarTarefas, 60000);   // garantia caso o tempo real caia
+  poll = setInterval(() => { carregarTarefas(); carregarFull(); }, 60000);   // garantia caso o tempo real caia
 }
 function pararDados(){
   clearTimeout(loadTimer); clearInterval(poll); poll = null;
   if(canal && sb){ sb.removeChannel(canal); canal = null; }
 }
-document.addEventListener("visibilitychange", () => { if(!document.hidden) carregarTarefas(); });
+document.addEventListener("visibilitychange", () => { if(!document.hidden){ carregarTarefas(); carregarFull(); } });
 
 async function carregarPerfis(){
   const { data, error } = await sb.from("perfis").select("id,nome,email,gestor,conferente,ordem").order("ordem");
