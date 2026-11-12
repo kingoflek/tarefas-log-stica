@@ -310,6 +310,15 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-transf.feito{border-style:solid;border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-bg)}
 .fi-transf.feito b{color:var(--ok)}
 .fi-st button:disabled,.fi-qty button:disabled,.fi-qty input:disabled{opacity:.45;cursor:not-allowed}
+.alerta-atraso{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;margin-bottom:14px;padding:14px 16px;
+  border-radius:14px;background:var(--crit-bg);border:2px solid var(--crit);color:var(--fg);box-shadow:var(--shadow)}
+.alerta-atraso .aa-ic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--crit);color:#fff;font-size:18px;font-weight:700}
+.alerta-atraso strong{display:block;color:var(--crit);font-size:15px}
+.alerta-atraso span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.alerta-atraso ul{margin:8px 0 0;padding-left:18px;font-size:13px}
+.alerta-atraso li{margin:2px 0}
+@media (max-width:620px){.alerta-atraso{grid-template-columns:auto minmax(0,1fr)}.alerta-atraso .btn{grid-column:1/-1}}
+@media (prefers-reduced-motion:no-preference){.alerta-atraso .aa-ic{animation:pulso 1.6s ease-in-out infinite}}
 .full-modo .cnt{font-size:11px;font-weight:700;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--surface-2);color:var(--fg)}
 .full-modo .cnt:empty{display:none}
 .full-modo button[aria-pressed="true"] .cnt{background:rgba(255,255,255,.25);color:inherit}
@@ -659,6 +668,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
         <b>Nota</b> (0 a 100) = 40% no prazo + 30% sem retrabalho + 30% rapidez (comparada a quem foi mais rápido no período). Só aparece com pelo menos 3 tarefas concluídas no período.
       </p>
     </div>
+    <div class="alerta-atraso" id="alertaAtraso" role="alert" hidden></div>
     <div class="list-head">
       <h2 id="listTitle">Minhas tarefas</h2>
       <div class="stats" id="stats"></div>
@@ -934,6 +944,29 @@ $("colAll").addEventListener("click", () => { expanded.clear(); openConfirm = op
 
 /* ---------- Render ---------- */
 function atrasada(t){ return t.status!=="concluida" && t.prazo && t.prazo < hoje(); }
+/* Alerta pessoal: só quem está logado vê, e só sobre as tarefas DELE com mais de 2 dias de atraso.
+   Aparece na aba Tarefas; outras pessoas (inclusive gestores olhando o quadro) não veem o alerta dos outros. */
+const ATRASO_ALERTA = 2;
+function renderAlertaAtraso(){
+  const box = $("alertaAtraso");
+  const graves = me && view === "tarefas"
+    ? tasks.filter(t => t.responsavel === me && diasAtraso(t) > ATRASO_ALERTA).sort((a, b) => diasAtraso(b) - diasAtraso(a))
+    : [];
+  box.hidden = !graves.length;
+  if(!graves.length){ box.innerHTML = ""; return; }
+  const n = graves.length, primeiro = me.split(/\s+/)[0];
+  box.innerHTML = `
+    <div class="aa-ic" aria-hidden="true">⚠</div>
+    <div class="aa-txt">
+      <strong>Atenção, ${esc(primeiro)}: você tem ${n} ${n === 1 ? "tarefa atrasada" : "tarefas atrasadas"} há mais de ${ATRASO_ALERTA} dias.</strong>
+      <span>Resolva ${n === 1 ? "esta tarefa" : "estas tarefas"} com prioridade máxima. Este aviso aparece só para você.</span>
+      <ul>${graves.slice(0, 5).map(t => `<li><b>${esc(t.titulo)}</b> · ${diasAtraso(t)} dias de atraso · prazo ${fmtData(t.prazo)}</li>`).join("")}
+        ${n > 5 ? `<li>e mais ${n - 5}…</li>` : ""}</ul>
+    </div>
+    <button type="button" class="btn btn-danger btn-sm" id="aaVer">Ver minhas atrasadas</button>`;
+  $("aaVer").onclick = () => { const b = document.querySelector('#tabs [data-view="atrasadas"]'); b && b.click(); };
+}
+
 function diasAtraso(t){ return atrasada(t) ? Math.round((Date.parse(hoje()) - Date.parse(t.prazo.slice(0,10))) / 864e5) : 0; }
 
 function render(){
@@ -944,6 +977,7 @@ function render(){
   const base = conf ? tasks.filter(t => t.status==="concluida") : atr ? meus.filter(atrasada) : meus;
   $("confBadge").textContent = tasks.filter(t => t.status==="concluida" && !t.conferida).length || "";
   $("lateBadge").textContent = meus.filter(atrasada).length || "";
+  renderAlertaAtraso();
   if(view==="metricas"){ renderMetricas(); return; }
   if(telaFull()){ renderFull(); return; }
 
