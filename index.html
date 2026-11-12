@@ -281,6 +281,17 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-st button.s-separando[aria-pressed="true"]{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
 .fi-st button.s-producao[aria-pressed="true"]{background:var(--steel);color:var(--steel-ink);border-color:var(--steel)}
 .fi-st button.s-concluido[aria-pressed="true"]{background:var(--ok);color:#fff;border-color:var(--ok)}
+.fprog{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.fprog-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap;margin-bottom:8px}
+.fprog-top b{font-family:var(--font-display);font-size:20px;text-transform:uppercase;letter-spacing:.03em}
+.fprog-top span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fprog-top strong{font-family:var(--font-display);font-size:22px;color:var(--fg)}
+.fprog-bar{height:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.fprog-bar i{display:block;height:100%;background:var(--accent);border-radius:999px;min-width:0}
+@media (prefers-reduced-motion:no-preference){.fprog-bar i{transition:width .4s ease}}
+.fprog.cheio{border-color:var(--ok);background:var(--ok-bg)}
+.fprog.cheio .fprog-bar i{background:var(--ok)}
+.fprog.cheio .fprog-top b,.fprog.cheio .fprog-top strong{color:var(--ok)}
 .fi-pos{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:12px;order:4}
 .fi-pos .pos{font-family:var(--font-mono);font-weight:600;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
 .fi-pos .pos small{font-family:var(--font-body);font-weight:500;color:var(--muted);margin-left:4px}
@@ -1075,6 +1086,7 @@ function renderFull(){
         <span class="del" id="fullDelBox"></span>
       </div>
       <div class="kpis" id="fullResumo"></div>
+      <div class="fprog" id="fullProg"></div>
       <div id="fullBody"></div>`;
     $("fullBusca").value = fullBusca; $("fullFiltroSt").value = fullFiltroSt;
   }
@@ -1091,6 +1103,13 @@ function renderFull(){
     `<div class="kpi k-concluido"><span>Concluídos</span><b>${nSt("concluido")} de ${fullItens.length}</b></div>` +
     `<div class="kpi"><span>Peças produzidas</span><b>${feitas} de ${tot}</b></div>` +
     `<div class="kpi ${tot - feitas ? "crit" : ""}"><span>Faltam peças</span><b>${tot - feitas}</b></div>`;
+
+  // barra de conclusão do envio (por peças produzidas)
+  const pct = tot ? Math.floor(100 * feitas / tot) : 0, cheio = tot > 0 && feitas >= tot;
+  $("fullProg").className = "fprog" + (cheio ? " cheio" : "");
+  $("fullProg").innerHTML = `
+    <div class="fprog-top"><b>${cheio ? "✓ Full concluído" : "Conclusão do Full"}</b><span><strong>${pct}%</strong> · ${feitas} de ${tot} peças · ${nSt("concluido")} de ${fullItens.length} SKUs concluídos</span></div>
+    <div class="fprog-bar" role="progressbar" aria-label="Conclusão do Full" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${tot ? 100 * feitas / tot : 0}%"></i></div>`;
 
   const q = semAcento(fullBusca.trim());
   const passaSt = i => !fullFiltroSt || (fullFiltroSt === "abertos" ? stDe(i) !== "concluido" : stDe(i) === fullFiltroSt);
