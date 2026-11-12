@@ -310,6 +310,25 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-transf.feito{border-style:solid;border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-bg)}
 .fi-transf.feito b{color:var(--ok)}
 .fi-st button:disabled,.fi-qty button:disabled,.fi-qty input:disabled{opacity:.45;cursor:not-allowed}
+.full-modo .cnt{font-size:11px;font-weight:700;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--surface-2);color:var(--fg)}
+.full-modo .cnt:empty{display:none}
+.full-modo button[aria-pressed="true"] .cnt{background:rgba(255,255,255,.25);color:inherit}
+#histLista{display:grid;gap:12px}
+.hcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;border-left:4px solid var(--ok)}
+.hhead{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;width:100%;padding:14px 16px;cursor:pointer}
+.hhead:hover{background:var(--surface-2)}
+.hhead:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.hnome{font-weight:700;font-size:16px;color:var(--fg)}
+.hmeta{grid-column:1/2;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted)}
+.hmeta b{color:var(--fg);font-weight:600}
+.hhead .chev{grid-column:2;grid-row:1/3;align-self:center}
+.hcard.open .chev{transform:rotate(180deg)}
+.hbody{padding:0 16px 16px;display:grid;gap:10px}
+.hinfo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:13px;color:var(--muted)}
+.hinfo .btn{margin-left:auto}
+.htable{min-width:980px;font-size:13px}
+.htable td{white-space:normal;vertical-align:top}
+.hdesc{font-size:11.5px;color:var(--muted);max-width:260px}
 .full-abas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px;margin-bottom:14px;box-shadow:var(--shadow)}
 .full-abas button{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 8px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);text-align:center}
 .full-abas button:hover{background:var(--surface-2);color:var(--fg)}
@@ -558,6 +577,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
       <div class="met-top">
         <h2>Full Mercado Livre</h2>
         <div class="full-sel">
+          <div class="seg full-modo" id="fullModo" role="group" aria-label="Envios">
+            <button type="button" data-modo="andamento" aria-pressed="true">Em andamento</button>
+            <button type="button" data-modo="historico" aria-pressed="false">📁 Histórico <span class="cnt" id="histCnt"></span></button>
+          </div>
           <label for="fullEnvio" class="sr">Envio</label>
           <select id="fullEnvio"></select>
           <button type="button" class="btn btn-ghost btn-sm" id="wmsNovo" hidden>📍 Posições WMS</button>
@@ -594,6 +617,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
       </section>
 
       <div id="fullConteudo"></div>
+      <div id="fullHist" hidden>
+        <div class="full-tools">
+          <input type="search" id="histBusca" placeholder="🔍 Pesquisar envio, SKU ou colaborador…" aria-label="Pesquisar no histórico" maxlength="60">
+        </div>
+        <div id="histLista"></div>
+      </div>
     </div>
     <div id="metrics" hidden>
       <div class="met-top">
@@ -764,6 +793,7 @@ async function logout(){
   pararDados();
   me = null; tasks = []; loaded = false; expanded.clear();
   fullEnvios = []; fullItens = []; fullLoaded = false; fullPrevia = null; $("fullImport").hidden = true; wmsPos = new Map(); wmsMeta = null; wmsPrevia = null; $("wmsImport").hidden = true;
+  fullModo = "andamento"; histItens = []; histCarregado = false; histAbertos.clear();
   $("pwPanel").hidden = true;
   try { await sb.auth.signOut(); } catch {}
   closeAuth(); showApp();
@@ -1130,6 +1160,7 @@ $("metTable").addEventListener("click", e => {
 /* ---------- Full Mercado Livre ---------- */
 let fullEnvios = [], fullItens = [], fullLoaded = false, fullErro = false, fullSel = "";
 let fullBusca = "", fullAba = "separando", fullDelEnvio = false, fullDelItem = null;
+let fullModo = "andamento", histItens = [], histCarregado = false, histErro = false, histBusca = "", histAbertos = new Set(), carregandoHist = 0;
 let wmsPos = new Map(), wmsMeta = null, wmsPrevia = null;
 let fullPrevia = null, carregandoFull = 0, fullRenderPendente = false;
 
@@ -1141,7 +1172,9 @@ async function carregarFull(){
   if(env.error){ fullErro = true; fullLoaded = true; if(view === "full") renderFull(); return; }
   fullErro = false;
   fullEnvios = env.data || [];
-  if(!fullEnvios.some(e => e.id === fullSel)) fullSel = fullEnvios.length ? fullEnvios[0].id : "";
+  const ativos = fullEnvios.filter(e => !e.concluido_em);          // concluídos vão para o Histórico
+  if(!ativos.some(e => e.id === fullSel)) fullSel = ativos.length ? ativos[0].id : "";
+  if(fullModo === "historico") carregarHistorico();
   let itens = [];
   if(fullSel){
     const it = await sb.from("full_itens").select("*").eq("envio_id", fullSel).order("ordem");
@@ -1254,17 +1287,24 @@ function renderFull(){
   $("wmsInfo").textContent = wmsMeta
     ? `Posições atuais: ${wmsMeta.total ?? "?"} registros, importados em ${fmtDT(Date.parse(wmsMeta.em))} por ${wmsMeta.por || "—"}.`
     : "Nenhuma posição importada ainda.";
-  $("fullEnvio").innerHTML = fullEnvios.length
-    ? fullEnvios.map(e => `<option value="${esc(e.id)}" ${e.id === fullSel ? "selected" : ""}>${esc(e.nome)} · ${fmtDT(Date.parse(e.criado_em))}</option>`).join("")
-    : `<option value="">Nenhum envio</option>`;
-  $("fullEnvio").disabled = !fullEnvios.length;
+  const ativos = fullEnvios.filter(e => !e.concluido_em), nHist = fullEnvios.length - ativos.length;
+  $("fullEnvio").innerHTML = ativos.length
+    ? ativos.map(e => `<option value="${esc(e.id)}" ${e.id === fullSel ? "selected" : ""}>${esc(e.nome)} · ${fmtDT(Date.parse(e.criado_em))}</option>`).join("")
+    : `<option value="">Nenhum envio em andamento</option>`;
+  $("fullEnvio").disabled = !ativos.length;
+  $("histCnt").textContent = nHist || "";
+  document.querySelectorAll("#fullModo button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.modo === fullModo)));
+  const hist = fullModo === "historico";
+  $("fullEnvio").hidden = hist; $("fullConteudo").hidden = hist; $("fullHist").hidden = !hist;
   atualizarFullBadge();
+  if(hist){ renderHistorico(); return; }
 
   const box = $("fullConteudo");
   if(!fullLoaded){ box.innerHTML = `<div class="empty"><strong>Carregando envios…</strong></div>`; return; }
   if(fullErro){ box.innerHTML = `<div class="empty"><strong>Não foi possível carregar o Full</strong>Verifique a conexão; o site tenta de novo sozinho.</div>`; return; }
-  if(!fullEnvios.length){
-    box.innerHTML = `<div class="empty"><strong>Nenhum envio do Full ainda</strong>${imp ? "Clique em “+ Importar PDF” para cadastrar o primeiro envio." : "Quando um envio for importado, os SKUs para produzir aparecem aqui."}</div>`;
+  if(!ativos.length){
+    box.innerHTML = `<div class="empty"><strong>${fullEnvios.length ? "Nenhum envio em andamento" : "Nenhum envio do Full ainda"}</strong>${
+      nHist ? `Os envios concluídos estão em “📁 Histórico”. ` : ""}${imp ? "Clique em “+ Importar PDF” para cadastrar um envio novo." : "Quando um envio for importado, os SKUs para produzir aparecem aqui."}</div>`;
     return;
   }
   if(!$("fullBody")){
@@ -1525,6 +1565,118 @@ async function baixarPdfFull(){
   }
   doc.save(`separacao-${envio.nome.replace(/[^\w\-]+/g, "-").replace(/^-|-$/g, "")}.pdf`);
 }
+
+/* ---------- Histórico do Full: envios concluídos ---------- */
+const quemQuando = (por, em) => por ? `${por}${em ? " · " + fmtDT(Date.parse(em)) : ""}` : "—";
+const tempoProd = i => i.separado_em && i.concluido_em ? fmtDur(msUteis(Date.parse(i.separado_em), Date.parse(i.concluido_em))) : "—";
+
+async function carregarHistorico(){
+  if(!sb || !me) return;
+  const n = ++carregandoHist;
+  const ids = fullEnvios.filter(e => e.concluido_em).slice(0, 60).map(e => e.id);   // os 60 mais recentes
+  if(!ids.length){ histItens = []; histCarregado = true; histErro = false; if(view === "full" && fullModo === "historico") renderHistorico(); return; }
+  const { data, error } = await sb.from("full_itens").select("*").in("envio_id", ids).order("ordem");
+  if(n !== carregandoHist || !me) return;
+  histErro = !!error; histItens = data || []; histCarregado = true;
+  if(view === "full" && fullModo === "historico") renderHistorico();
+}
+
+function renderHistorico(){
+  const box = $("histLista");
+  const envios = fullEnvios.filter(e => e.concluido_em).sort((a, b) => Date.parse(b.concluido_em) - Date.parse(a.concluido_em)).slice(0, 60);
+  if(!envios.length){ box.innerHTML = `<div class="empty"><strong>Nenhum envio concluído ainda</strong>Quando todos os itens de um envio forem concluídos, ele sai de “Em andamento” e fica guardado aqui.</div>`; return; }
+  if(!histCarregado){ box.innerHTML = `<div class="empty"><strong>Carregando histórico…</strong></div>`; return; }
+  if(histErro){ box.innerHTML = `<div class="empty"><strong>Não foi possível carregar o histórico</strong>Verifique a conexão e tente de novo.</div>`; return; }
+  const q = semAcento(histBusca.trim());
+  const g = isGestor(me);
+  const cards = envios.map(e => {
+    const its = histItens.filter(i => i.envio_id === e.id);
+    const texto = semAcento([e.nome, ...its.flatMap(i => [i.sku, i.descricao, i.colaborador, i.separado_por, i.transferido_por, i.concluido_por])].join(" "));
+    if(q && !texto.includes(q)) return "";
+    const pecas = its.reduce((s, i) => s + i.quantidade, 0);
+    const colabs = [...new Set(its.map(i => i.colaborador).filter(Boolean))];
+    const aberto = histAbertos.has(e.id) || !!q;
+    const dur = fmtDur(msUteis(Date.parse(e.criado_em), Date.parse(e.concluido_em)));
+    return `<article class="hcard ${aberto ? "open" : ""}" data-env="${esc(e.id)}">
+      <button type="button" class="hhead" data-ha="toggle" aria-expanded="${aberto}">
+        <span class="hnome">✓ ${esc(e.nome)}</span>
+        <span class="hmeta">
+          <span>Concluído em <b>${fmtDT(Date.parse(e.concluido_em))}</b></span>
+          <span>${its.length} SKUs · ${pecas} peças</span>
+          <span title="Conta só o expediente: seg a sex, 7h às 17h">Duração <b>${dur}</b></span>
+          ${colabs.length ? `<span>👤 ${colabs.map(esc).join(", ")}</span>` : ""}
+        </span>
+        <span class="chev" aria-hidden="true">▾</span>
+      </button>
+      ${aberto ? `<div class="hbody">
+        <div class="hinfo">Importado em ${fmtDT(Date.parse(e.criado_em))}${e.criado_por ? ` por <b>${esc(e.criado_por)}</b>` : ""}${e.arquivo ? ` · arquivo ${esc(e.arquivo)}` : ""}
+          <button type="button" class="btn btn-ghost btn-sm" data-ha="pdf">⬇ Relatório em PDF</button></div>
+        <div class="mtable-wrap"><table class="mtable htable">
+          <thead><tr><th>SKU</th><th>Tipo</th><th class="r">Qtd.</th><th>Transferência do Base</th><th>Separação</th><th>Colaborador</th><th>Concluído</th><th>Tempo de produção</th></tr></thead>
+          <tbody>${its.map(i => `<tr>
+            <td><b class="sku">${esc(i.sku)}</b>${i.descricao ? `<div class="hdesc">${esc(i.descricao.replace(/\s*·\s*Cód\. ML.*$/, ""))}</div>` : ""}</td>
+            <td>${tipoDe(i) === "par" ? "Par" : "Só lado"}</td>
+            <td class="r">${i.produzido}/${i.quantidade}</td>
+            <td>${esc(quemQuando(i.transferido_por, i.transferido_em))}</td>
+            <td>${esc(quemQuando(i.separado_por, i.separado_em))}</td>
+            <td>${i.colaborador ? `<b>${esc(i.colaborador)}</b>` : "—"}</td>
+            <td>${esc(quemQuando(i.concluido_por || i.status_por, i.concluido_em || i.status_em))}</td>
+            <td>${tempoProd(i)}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+      </div>` : ""}
+    </article>`;
+  }).join("");
+  box.innerHTML = cards || `<div class="empty"><strong>Nada encontrado</strong>Nenhum envio do histórico tem “${esc(histBusca.trim())}”.</div>`;
+}
+
+async function baixarPdfHistorico(envio){
+  const JsPDF = await carregarJsPdf();
+  const its = histItens.filter(i => i.envio_id === envio.id);
+  const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const pecas = its.reduce((s, i) => s + i.quantidade, 0);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text(`Relatório de produção · ${envio.nome}`, 14, 15);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`${its.length} SKUs · ${pecas} peças · importado em ${fmtDT(Date.parse(envio.criado_em))} · concluído em ${fmtDT(Date.parse(envio.concluido_em))} · duração ${fmtDur(msUteis(Date.parse(envio.criado_em), Date.parse(envio.concluido_em)))} (expediente)`, 14, 21);
+  doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} por ${me}`, W - 14, 21, { align: "right" });
+  doc.setTextColor(0);
+  doc.autoTable({
+    startY: 27,
+    head: [["SKU", "Descrição", "Tipo", "Qtd.", "Transferência do Base", "Separação", "Colaborador", "Concluído", "Tempo prod."]],
+    body: its.map(i => [i.sku, (i.descricao || "").replace(/\s*·\s*Cód\. ML.*$/, ""), tipoDe(i) === "par" ? "Par" : "Só lado", `${i.produzido}/${i.quantidade}`,
+      quemQuando(i.transferido_por, i.transferido_em), quemQuando(i.separado_por, i.separado_em), i.colaborador || "—",
+      quemQuando(i.concluido_por || i.status_por, i.concluido_em || i.status_em), tempoProd(i)]),
+    theme: "grid",
+    styles: { font: "helvetica", fontSize: 8.5, cellPadding: 1.8, valign: "middle", lineColor: [200, 205, 210] },
+    headStyles: { fillColor: [59, 29, 110], textColor: 255, fontStyle: "bold" },
+    columnStyles: { 0: { font: "courier", fontStyle: "bold", cellWidth: 30 }, 1: { cellWidth: "auto" }, 2: { cellWidth: 16 }, 3: { cellWidth: 16, halign: "right" },
+      4: { cellWidth: 36 }, 5: { cellWidth: 36 }, 6: { cellWidth: 30, fontStyle: "bold" }, 7: { cellWidth: 36 }, 8: { cellWidth: 20 } },
+    margin: { left: 14, right: 14, bottom: 14 }
+  });
+  const n = doc.getNumberOfPages();
+  for(let p = 1; p <= n; p++){
+    doc.setPage(p); doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(`${envio.nome} · página ${p} de ${n}`, W - 14, doc.internal.pageSize.getHeight() - 7, { align: "right" });
+  }
+  doc.save(`producao-${envio.nome.replace(/[^\w\-]+/g, "-").replace(/^-|-$/g, "")}.pdf`);
+}
+
+$("fullModo").addEventListener("click", e => {
+  const b = e.target.closest("button[data-modo]"); if(!b || b.dataset.modo === fullModo) return;
+  fullModo = b.dataset.modo;
+  $("fullImport").hidden = true; $("wmsImport").hidden = true;
+  if(fullModo === "historico"){ histCarregado = false; carregarHistorico(); }
+  renderFull();
+});
+$("histBusca").addEventListener("input", e => { histBusca = e.target.value; renderHistorico(); });
+$("histLista").addEventListener("click", e => {
+  const b = e.target.closest("button[data-ha]"); if(!b) return;
+  const card = b.closest(".hcard"), id = card && card.dataset.env;
+  if(b.dataset.ha === "toggle"){ histAbertos.has(id) ? histAbertos.delete(id) : histAbertos.add(id); renderHistorico(); return; }
+  if(b.dataset.ha === "pdf"){ const env = fullEnvios.find(x => x.id === id); if(env) botaoPdf(b, () => baixarPdfHistorico(env)); }
+});
 
 // PDF de toda a base de posições do WMS, em ordem de posição
 async function baixarPdfWms(){
