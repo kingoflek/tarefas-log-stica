@@ -281,6 +281,11 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-st button.s-separando[aria-pressed="true"]{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
 .fi-st button.s-producao[aria-pressed="true"]{background:var(--steel);color:var(--steel-ink);border-color:var(--steel)}
 .fi-st button.s-concluido[aria-pressed="true"]{background:var(--ok);color:#fff;border-color:var(--ok)}
+.fi-pos{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:12px;order:4}
+.fi-pos .pos{font-family:var(--font-mono);font-weight:600;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.fi-pos .pos small{font-family:var(--font-body);font-weight:500;color:var(--muted);margin-left:4px}
+.fi-pos .sem{color:var(--muted);font-style:italic}
+.wms-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:12px}
 .fi-quem{grid-column:1/-1;font-size:11px;color:var(--muted);order:6}
 .fi-g{order:7}
 .fitem.st-separando{box-shadow:inset 4px 0 0 var(--warn)}
@@ -390,9 +395,22 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
         <div class="full-sel">
           <label for="fullEnvio" class="sr">Envio</label>
           <select id="fullEnvio"></select>
+          <button type="button" class="btn btn-ghost btn-sm" id="wmsNovo" hidden>📍 Posições WMS</button>
           <button type="button" class="btn btn-primary btn-sm" id="fullNovo" hidden>+ Importar PDF</button>
         </div>
       </div>
+
+      <section class="panel full-imp" id="wmsImport" hidden>
+        <h2>Posições do WMS</h2>
+        <p class="full-hint">Exporte do WMS o relatório de estoque por posição (Excel ou CSV) e escolha o arquivo aqui. As posições atuais são trocadas pelas do arquivo. Elas servem só para consulta: a retirada continua no WMS.</p>
+        <p class="full-hint" id="wmsInfo"></p>
+        <div class="full-file">
+          <input type="file" id="wmsFile" accept=".xlsx,.xls,.csv,.txt">
+          <button type="button" class="btn btn-ghost btn-sm" id="wmsFechar">Fechar</button>
+        </div>
+        <div class="msg" id="wmsMsg" role="status"></div>
+        <div id="wmsPrev"></div>
+      </section>
 
       <section class="panel full-imp" id="fullImport" hidden>
         <h2>Importar envio do Full</h2>
@@ -573,7 +591,7 @@ function entrar(user){
 async function logout(){
   pararDados();
   me = null; tasks = []; loaded = false; expanded.clear();
-  fullEnvios = []; fullItens = []; fullLoaded = false; fullPrevia = null; $("fullImport").hidden = true;
+  fullEnvios = []; fullItens = []; fullLoaded = false; fullPrevia = null; $("fullImport").hidden = true; wmsPos = new Map(); wmsMeta = null; wmsPrevia = null; $("wmsImport").hidden = true;
   $("pwPanel").hidden = true;
   try { await sb.auth.signOut(); } catch {}
   closeAuth(); showApp();
@@ -937,6 +955,7 @@ $("metTable").addEventListener("click", e => {
 /* ---------- Full Mercado Livre ---------- */
 let fullEnvios = [], fullItens = [], fullLoaded = false, fullErro = false, fullSel = "";
 let fullBusca = "", fullFiltroSt = "", fullDelEnvio = false, fullDelItem = null;
+let wmsPos = new Map(), wmsMeta = null, wmsPrevia = null;
 let fullPrevia = null, carregandoFull = 0, fullRenderPendente = false;
 
 async function carregarFull(){
@@ -955,6 +974,17 @@ async function carregarFull(){
     if(it.error){ fullErro = true; fullLoaded = true; if(view === "full") renderFull(); return; }
     itens = it.data || [];
   }
+  // posições do WMS só dos SKUs deste envio (consulta; não bloqueia o Full se falhar)
+  const skus = [...new Set(itens.map(i => String(i.sku).trim().toUpperCase()))];
+  const [pos, meta] = await Promise.all([
+    skus.length ? sb.from("wms_posicoes").select("sku,posicao,quantidade").in("sku", skus) : { data: [] },
+    sb.from("wms_posicoes").select("importado_em,importado_por", { count: "exact" }).order("importado_em", { ascending: false }).limit(1)
+  ]);
+  if(n !== carregandoFull || !me) return;
+  wmsPos = new Map();
+  (pos.data || []).forEach(p => { if(!wmsPos.has(p.sku)) wmsPos.set(p.sku, []); wmsPos.get(p.sku).push(p); });
+  wmsPos.forEach(l => l.sort((a, b) => (Number(b.quantidade) || 0) - (Number(a.quantidade) || 0) || a.posicao.localeCompare(b.posicao)));
+  wmsMeta = meta.data && meta.data[0] ? { em: meta.data[0].importado_em, por: meta.data[0].importado_por, total: meta.count } : null;
   fullItens = itens; fullLoaded = true;
   // não redesenha enquanto alguém digita uma quantidade
   const a = document.activeElement;
@@ -971,12 +1001,22 @@ function atualizarFullBadge(){
   $("fullBadge").textContent = fullItens.filter(i => stDe(i) !== "concluido").length || "";
 }
 
+const fmtQtd = q => q == null || q === "" ? "" : Number(q).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+function posHTML(sku){
+  if(!wmsMeta) return "";                                   // nenhuma posição importada ainda
+  const l = wmsPos.get(String(sku).trim().toUpperCase());
+  if(!l || !l.length) return `<div class="fi-pos"><span class="sem">📍 Sem posição no WMS</span></div>`;
+  const MAX = 6;
+  return `<div class="fi-pos">📍 ${l.slice(0, MAX).map(p => `<span class="pos">${esc(p.posicao)}${p.quantidade != null ? `<small>${fmtQtd(p.quantidade)} un.</small>` : ""}</span>`).join("")}${l.length > MAX ? `<span class="sem">+${l.length - MAX} posições</span>` : ""}</div>`;
+}
+
 function fullItemHTML(i, g){
   const st = stDe(i), ok = st === "concluido";
   const p = Math.min(100, Math.round(100 * i.produzido / i.quantidade));
   const id = esc(i.id);
   return `<div class="fitem st-${st} ${ok ? "ok" : ""}" data-id="${id}">
     <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${esc(i.sku)}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
+    ${posHTML(i.sku)}
     <div class="fi-st" role="group" aria-label="Status de ${esc(i.sku)}">
       ${FULL_ST.map(([k, lbl]) => `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}">${lbl}</button>`).join("")}
     </div>
@@ -998,8 +1038,11 @@ function renderFull(){
   if(!me) return;
   fullRenderPendente = false;
   const g = isGestor(me);
-  $("fullNovo").hidden = !g;
-  if(!g) $("fullImport").hidden = true;
+  $("fullNovo").hidden = !g; $("wmsNovo").hidden = !g;
+  if(!g){ $("fullImport").hidden = true; $("wmsImport").hidden = true; }
+  $("wmsInfo").textContent = wmsMeta
+    ? `Posições atuais: ${wmsMeta.total ?? "?"} registros, importados em ${fmtDT(Date.parse(wmsMeta.em))} por ${wmsMeta.por || "—"}.`
+    : "Nenhuma posição importada ainda.";
   $("fullEnvio").innerHTML = fullEnvios.length
     ? fullEnvios.map(e => `<option value="${esc(e.id)}" ${e.id === fullSel ? "selected" : ""}>${esc(e.nome)} · ${fmtDT(Date.parse(e.criado_em))}</option>`).join("")
     : `<option value="">Nenhum envio</option>`;
@@ -1127,6 +1170,149 @@ $("fullConteudo").addEventListener("click", async e => {
     await carregarFull();
   }catch(err){ showBanner(errMsg(err, "Não foi possível salvar a alteração.")); b.disabled = false; }
 });
+
+/* ---------- Posições do WMS (planilha lida no navegador com o SheetJS) ---------- */
+let xlsxPromise = null;
+function carregarXlsx(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(!xlsxPromise) xlsxPromise = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload = () => res(window.XLSX);
+    s.onerror = () => { xlsxPromise = null; rej(new Error("xlsx")); };
+    document.head.appendChild(s);
+  });
+  return xlsxPromise;
+}
+
+// Lê a 1ª aba da planilha (ou o CSV) como linhas de texto
+async function lerPlanilha(file){
+  const X = await carregarXlsx();
+  const buf = await file.arrayBuffer();
+  let wb;
+  if(/\.(csv|txt)$/i.test(file.name)){
+    let txt = new TextDecoder("utf-8").decode(buf);
+    if(txt.includes("�")) txt = new TextDecoder("windows-1252").decode(buf);   // CSV salvo pelo Excel em português
+    wb = X.read(txt, { type: "string", raw: true });
+  } else wb = X.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return X.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" })
+    .map(r => r.map(c => String(c ?? "").trim()))
+    .filter(r => r.some(Boolean));
+}
+
+const RX_COL_SKU = /^(sku|c[oó]d(igo)?\.?\s*(do\s*)?(produto|item|sku|interno)?|produto|item|refer[eê]ncia|ref\.?|part\s*number)$/i;
+const RX_COL_POS = /(posi[cç]|endere[cç]|local|loca[cç]|^bin$|slot|box|^rua$|prateleira|^end\.?$)/i;
+const RX_COL_QTD = /(qtd|qtde|quant|saldo|estoque|dispon|^disp)/i;
+function detectarColunas(linhas){
+  let melhor = { idx: 0, pts: -1, sku: -1, pos: -1, qtd: -1 };
+  linhas.slice(0, 25).forEach((r, idx) => {
+    const sku = r.findIndex(c => RX_COL_SKU.test(semAcento(c).trim()) || /^sku/i.test(c));
+    const pos = r.findIndex(c => RX_COL_POS.test(semAcento(c)));
+    const qtd = r.findIndex(c => RX_COL_QTD.test(semAcento(c)));
+    const pts = (sku >= 0) + (pos >= 0) * 2 + (qtd >= 0);
+    if(pts > melhor.pts) melhor = { idx, pts, sku, pos, qtd };
+  });
+  if(melhor.pts <= 0) melhor = { idx: 0, pts: 0, sku: 0, pos: 1, qtd: -1 };
+  return melhor;
+}
+function numeroBR(s){
+  s = String(s ?? "").replace(/\s/g, "");
+  if(!s) return null;
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, "").replace(",", ".");   // 1.234,5
+  else s = s.replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function linhasWms(){
+  const P = wmsPrevia, mapa = new Map();
+  P.linhas.slice(P.cab + 1).forEach(r => {
+    const sku = String(r[P.sku] ?? "").trim().toUpperCase(), pos = String(r[P.pos] ?? "").trim();
+    if(!sku || !pos) return;
+    const q = P.qtd >= 0 ? numeroBR(r[P.qtd]) : null;
+    const k = sku + "\u0000" + pos, ja = mapa.get(k);
+    if(ja){ if(q != null) ja.quantidade = (ja.quantidade || 0) + q; }
+    else mapa.set(k, { sku, posicao: pos, quantidade: q });
+  });
+  return [...mapa.values()];
+}
+function renderWmsPrevia(){
+  const P = wmsPrevia, box = $("wmsPrev");
+  if(!P){ box.innerHTML = ""; return; }
+  const cab = P.linhas[P.cab] || [], nCols = Math.max(...P.linhas.map(r => r.length));
+  const nomeCol = k => `${String.fromCharCode(65 + (k % 26))}${k >= 26 ? Math.floor(k / 26) : ""} · ${cab[k] || "(sem título)"}`;
+  const opts = (sel, opcional) => (opcional ? `<option value="-1" ${sel < 0 ? "selected" : ""}>— não usar —</option>` : "") +
+    Array.from({ length: nCols }, (_, k) => `<option value="${k}" ${k === sel ? "selected" : ""}>${esc(nomeCol(k))}</option>`).join("");
+  const dados = linhasWms();
+  const skusEnvio = new Set(fullItens.map(i => String(i.sku).trim().toUpperCase()));
+  const achados = [...skusEnvio].filter(s => dados.some(d => d.sku === s)).length;
+  box.innerHTML = `
+    <div class="wms-map">
+      <div class="field"><label for="wmsCSku">Coluna do SKU</label><select id="wmsCSku" data-w="sku">${opts(P.sku)}</select></div>
+      <div class="field"><label for="wmsCPos">Coluna da posição</label><select id="wmsCPos" data-w="pos">${opts(P.pos)}</select></div>
+      <div class="field"><label for="wmsCQtd">Coluna da quantidade <span class="hint">· opcional</span></label><select id="wmsCQtd" data-w="qtd">${opts(P.qtd, true)}</select></div>
+      <div class="field"><label for="wmsCab">Linha do cabeçalho</label><input id="wmsCab" type="number" min="1" max="${P.linhas.length}" value="${P.cab + 1}"></div>
+    </div>
+    <div class="ptable-wrap"><table class="ptable" style="min-width:0">
+      <thead><tr><th>SKU</th><th>Posição</th><th>Qtd.</th></tr></thead>
+      <tbody>${dados.slice(0, 8).map(d => `<tr><td class="sku">${esc(d.sku)}</td><td style="font-family:var(--font-mono)">${esc(d.posicao)}</td><td>${fmtQtd(d.quantidade)}</td></tr>`).join("") ||
+        `<tr><td colspan="3" style="color:var(--crit)">Nenhuma linha com SKU e posição. Confira as colunas acima.</td></tr>`}</tbody>
+    </table></div>
+    <p class="prev-sum">${dados.length} posições lidas de ${new Set(dados.map(d => d.sku)).size} SKUs${dados.length > 8 ? " (mostrando as 8 primeiras)" : ""}.
+      ${skusEnvio.size ? ` Do envio aberto, <b>${achados} de ${skusEnvio.size}</b> SKUs têm posição neste arquivo.` : ""}</p>
+    <div class="prev-foot"><button type="button" class="btn btn-primary" id="wmsSalvar" ${dados.length ? "" : "disabled"}>Substituir posições (${dados.length})</button></div>`;
+}
+$("wmsPrev").addEventListener("change", e => {
+  if(!wmsPrevia) return;
+  if(e.target.dataset.w) wmsPrevia[e.target.dataset.w] = Number(e.target.value);
+  if(e.target.id === "wmsCab"){
+    wmsPrevia.cab = Math.min(wmsPrevia.linhas.length - 1, Math.max(0, Number(e.target.value) - 1));
+    const d = detectarColunas([wmsPrevia.linhas[wmsPrevia.cab]]);
+    if(d.pts > 0) Object.assign(wmsPrevia, { sku: d.sku, pos: d.pos, qtd: d.qtd });
+  }
+  renderWmsPrevia();
+});
+$("wmsPrev").addEventListener("click", async e => {
+  if(e.target.id !== "wmsSalvar" || !sb) return;
+  const b = e.target, msg = $("wmsMsg"), dados = linhasWms();
+  if(!dados.length) return;
+  b.disabled = true; msg.className = "msg"; msg.textContent = "Salvando posições…";
+  try{
+    const { data, error } = await sb.rpc("substituir_posicoes_wms", { dados });
+    if(error) throw error;
+    msg.className = "msg ok"; msg.textContent = `Pronto: ${data} posições salvas.`;
+    wmsPrevia = null; renderWmsPrevia(); $("wmsFile").value = "";
+    await carregarFull();
+  }catch(err){
+    msg.className = "msg err"; msg.textContent = errMsg(err, "Não foi possível salvar as posições. Tente de novo.");
+    b.disabled = false;
+  }
+});
+$("wmsFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  const msg = $("wmsMsg");
+  msg.className = "msg"; msg.textContent = "Lendo a planilha…";
+  wmsPrevia = null; renderWmsPrevia();
+  try{
+    const linhas = await lerPlanilha(f);
+    if(linhas.length < 2){ msg.className = "msg err"; msg.textContent = "A planilha está vazia ou tem só uma linha."; return; }
+    const d = detectarColunas(linhas);
+    wmsPrevia = { linhas, cab: d.idx, sku: d.sku, pos: d.pos, qtd: d.qtd };
+    msg.className = d.pts >= 3 ? "msg ok" : "msg err";
+    msg.textContent = d.pts >= 3
+      ? "Reconheci as colunas. Confira a amostra abaixo e clique em “Substituir posições”."
+      : "Não reconheci todas as colunas sozinho. Escolha abaixo qual coluna é o SKU e qual é a posição.";
+    renderWmsPrevia();
+  }catch(err){
+    msg.className = "msg err";
+    msg.textContent = err && err.message === "xlsx" ? "Não foi possível carregar o leitor de planilhas. Verifique a internet." : "Não foi possível ler este arquivo. Salve como .xlsx ou .csv e tente de novo.";
+  }
+});
+$("wmsNovo").addEventListener("click", () => {
+  const p = $("wmsImport"); p.hidden = !p.hidden;
+  if(!p.hidden){ $("fullImport").hidden = true; $("wmsMsg").textContent = ""; $("wmsFile").focus(); }
+});
+$("wmsFechar").addEventListener("click", () => { $("wmsImport").hidden = true; wmsPrevia = null; renderWmsPrevia(); $("wmsFile").value = ""; $("wmsMsg").textContent = ""; });
 
 /* Importação do PDF (lido no próprio navegador com o PDF.js) */
 let pdfjsPromise = null;
@@ -1360,7 +1546,7 @@ async function salvarPrevia(btn){
 
 $("fullNovo").addEventListener("click", () => {
   const p = $("fullImport"); p.hidden = !p.hidden;
-  if(!p.hidden){ $("fullMsg").textContent = ""; $("fullFile").focus(); }
+  if(!p.hidden){ $("wmsImport").hidden = true; $("fullMsg").textContent = ""; $("fullFile").focus(); }
 });
 $("fullFechar").addEventListener("click", () => { $("fullImport").hidden = true; fullPrevia = null; renderPrevia(); $("fullFile").value = ""; $("fullMsg").textContent = ""; });
 $("fullManual").addEventListener("click", () => {
