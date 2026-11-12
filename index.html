@@ -308,7 +308,31 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-transf.feito{border-style:solid;border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-bg)}
 .fi-transf.feito b{color:var(--ok)}
 .fi-st button:disabled,.fi-qty button:disabled,.fi-qty input:disabled{opacity:.45;cursor:not-allowed}
-.fitem.st-aguardando{box-shadow:inset 4px 0 0 var(--warn)}
+.full-abas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px;margin-bottom:14px;box-shadow:var(--shadow)}
+.full-abas button{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 8px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);text-align:center}
+.full-abas button:hover{background:var(--surface-2);color:var(--fg)}
+.full-abas button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.full-abas .cnt{font-size:12px;font-weight:700;min-width:22px;padding:1px 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--fg)}
+.full-abas button[aria-selected="true"]{color:#fff}
+.full-abas button[aria-selected="true"] .cnt{background:rgba(255,255,255,.22);border-color:transparent;color:#fff}
+.full-abas .ab-separando[aria-selected="true"]{background:var(--warn)}
+.full-abas .ab-producao[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.full-abas .ab-producao[aria-selected="true"] .cnt{color:var(--accent-ink)}
+.full-abas .ab-concluido[aria-selected="true"]{background:var(--ok)}
+@media (max-width:520px){.full-abas button{flex-direction:column;gap:2px;font-size:12.5px;padding:8px 4px}}
+.fi-qtdtxt{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
+.fi-qtdtxt b{font-size:18px;color:var(--fg)}
+.fi-colab{grid-column:1/-1;order:3;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--muted)}
+.fi-colab span{white-space:nowrap}
+.fi-colab select{flex:1;min-width:0;padding:7px 9px;font-size:13px;font-weight:600;color:var(--fg)}
+.fi-colab.vazio select{border-color:var(--warn);background:var(--warn-bg)}
+.fi-info{grid-column:1/-1;order:3;font-size:13px;color:var(--muted)}
+.fi-info b{color:var(--fg)}
+.fi-acoes{grid-column:1/-1;order:6;display:flex;gap:6px;flex-wrap:wrap}
+.fi-acoes .btn{flex:1;min-width:140px}
+.fi-acoes .btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.fi-quem{order:7!important}
+.fi-g{order:8!important}
 .kpi.k-aguardando b{color:var(--warn)}
 .fi-quem{grid-column:1/-1;font-size:11px;color:var(--muted);order:6}
 .fi-g{order:7}
@@ -1103,7 +1127,7 @@ $("metTable").addEventListener("click", e => {
 
 /* ---------- Full Mercado Livre ---------- */
 let fullEnvios = [], fullItens = [], fullLoaded = false, fullErro = false, fullSel = "";
-let fullBusca = "", fullFiltroSt = "", fullDelEnvio = false, fullDelItem = null;
+let fullBusca = "", fullAba = "separando", fullDelEnvio = false, fullDelItem = null;
 let wmsPos = new Map(), wmsMeta = null, wmsPrevia = null;
 let fullPrevia = null, carregandoFull = 0, fullRenderPendente = false;
 
@@ -1162,33 +1186,56 @@ function posHTML(sku){
   return `<div class="fi-pos">📍 ${l.slice(0, MAX).map(p => `<span class="pos">${esc(p.posicao)}${p.quantidade != null ? `<small>${fmtQtd(p.quantidade)} un.</small>` : ""}</span>`).join("")}${l.length > MAX ? `<span class="sem">+${l.length - MAX} posições</span>` : ""}</div>`;
 }
 
+// colaboradores que podem produzir: os usuários normais (não gestores)
+const colaboradores = () => perfis.filter(p => !p.gestor).map(p => p.nome);
+
 function fullItemHTML(i, g){
   const st = stDe(i), ok = st === "concluido";
   const p = Math.min(100, Math.round(100 * i.produzido / i.quantidade));
-  const id = esc(i.id);
-  return `<div class="fitem st-${st} ${ok ? "ok" : ""}" data-id="${id}">
-    <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${esc(i.sku)}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
-    ${posHTML(i.sku)}
-    <label class="fi-transf ${i.transferido ? "feito" : ""}" ${ok ? `title="Item concluído: para desmarcar, volte o status antes"` : ""}>
-      <input type="checkbox" data-fa="transf" ${i.transferido ? "checked" : ""} ${ok ? "disabled" : ""}>
+  const id = esc(i.id), sku = esc(i.sku);
+  const transf = () => `<label class="fi-transf ${i.transferido ? "feito" : ""}">
+      <input type="checkbox" data-fa="transf" ${i.transferido ? "checked" : ""}>
       <span><b>Fez a transferência do Base</b>${i.transferido && i.transferido_por
         ? `<small>${esc(i.transferido_por)}${i.transferido_em ? " em " + fmtDT(Date.parse(i.transferido_em)) : ""}</small>`
-        : `<small>Marque assim que transferir no WMS. Sem isso o item não pode ser concluído.</small>`}</span>
-    </label>
-    <div class="fi-st" role="group" aria-label="Status de ${esc(i.sku)}">
-      ${FULL_ST.map(([k, lbl]) => {
-        const bloq = k === "concluido" && !i.transferido;
-        return `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}" ${bloq ? `disabled title="Marque “Fez a transferência do Base” primeiro"` : ""}>${bloq ? "🔒 " : ""}${lbl}</button>`;
-      }).join("")}
-    </div>
+        : `<small>Marque assim que transferir no WMS. Isso libera “${st === "separando" ? "Concluir separação" : "Concluir produção"}”.</small>`}</span>
+    </label>`;
+  let corpo;
+  if(st === "separando"){
+    corpo = `<div class="fi-qtdtxt"><b>${i.quantidade}</b> un.</div>
+      ${posHTML(i.sku)}
+      ${transf()}
+      <div class="fi-acoes">
+        <button type="button" class="btn btn-primary btn-sm" data-fa="avancar" ${i.transferido ? "" : `disabled title="Marque “Fez a transferência do Base” primeiro"`}>${i.transferido ? "" : "🔒 "}Concluir separação →</button>
+      </div>`;
+  } else if(st === "producao"){
+    const lista = colaboradores();
+    if(i.colaborador && !lista.includes(i.colaborador)) lista.unshift(i.colaborador);
+    corpo = `<div class="fi-qty">
+        <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${sku}">−</button>
+        <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${sku}">
+        <span>/ ${i.quantidade}</span>
+        <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${sku}">+</button>
+      </div>
+      <div class="fi-bar"><i style="width:${p}%"></i></div>
+      <label class="fi-colab ${i.colaborador ? "" : "vazio"}"><span>👤 Colaborador</span>
+        <select data-fa="colab" aria-label="Colaborador que está produzindo ${sku}">
+          <option value="">Escolher quem está produzindo…</option>
+          ${lista.map(n => `<option value="${esc(n)}" ${n === i.colaborador ? "selected" : ""}>${esc(n)}</option>`).join("")}
+        </select></label>
+      ${i.transferido ? "" : transf()}
+      <div class="fi-acoes">
+        <button type="button" class="btn btn-ghost btn-sm" data-fa="voltarSep">↩ Voltar para separação</button>
+        <button type="button" class="btn btn-ok btn-sm" data-fa="concluirProd" ${i.transferido ? "" : "disabled"}>✓ Concluir produção</button>
+      </div>`;
+  } else {
+    corpo = `<div class="fi-qtdtxt"><b>${i.produzido}</b> de ${i.quantidade} un.</div>
+      <div class="fi-info">${i.colaborador ? `👤 Produzido por <b>${esc(i.colaborador)}</b>` : `<span style="font-style:italic">Sem colaborador registrado</span>`}</div>
+      <div class="fi-acoes"><button type="button" class="btn btn-ghost btn-sm" data-fa="reabrir">↩ Voltar para produção</button></div>`;
+  }
+  return `<div class="fitem st-${st} ${ok ? "ok" : ""}" data-id="${id}">
+    <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${sku}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
+    ${corpo}
     ${i.status_por ? `<div class="fi-quem">${ST_LBL[st]} · ${esc(i.status_por)} em ${fmtDT(Date.parse(i.status_em))}</div>` : ""}
-    <div class="fi-qty">
-      <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}">−</button>
-      <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}">
-      <span>/ ${i.quantidade}</span>
-      <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}">+</button>
-    </div>
-    <div class="fi-bar"><i style="width:${p}%"></i></div>
     ${g ? `<div class="fi-g">${fullDelItem === i.id
       ? `<button type="button" class="btn btn-danger btn-sm" data-fa="excluirSim">Confirmar exclusão</button><button type="button" class="btn btn-ghost btn-sm" data-fa="excluirNao">Cancelar</button>`
       : `<button type="button" class="btn btn-ghost btn-sm" data-fa="excluir">Excluir</button>`}</div>` : ""}
@@ -1221,20 +1268,14 @@ function renderFull(){
   if(!$("fullBody")){
     box.innerHTML = `<div class="full-tools">
         <input type="search" id="fullBusca" placeholder="🔍 Pesquisar SKU ou descrição…" aria-label="Pesquisar SKU ou descrição" maxlength="60">
-        <label class="sr" for="fullFiltroSt">Filtrar por status</label>
-        <select id="fullFiltroSt" style="width:auto;min-width:170px;background:var(--surface)">
-          <option value="">Todos os status</option>
-          <option value="abertos">Não concluídos</option>
-          <option value="semtransf">Sem transferência do Base</option>
-          ${FULL_ST.map(([k, lbl]) => `<option value="${k}">${lbl}</option>`).join("")}
-        </select>
         <button type="button" class="btn btn-ghost btn-sm" data-fa="pdf">⬇ Baixar PDF</button>
         <span class="del" id="fullDelBox"></span>
       </div>
       <div class="kpis" id="fullResumo"></div>
       <div class="fprog" id="fullProg"></div>
+      <div class="full-abas" id="fullAbas" role="tablist" aria-label="Etapas do Full"></div>
       <div id="fullBody"></div>`;
-    $("fullBusca").value = fullBusca; $("fullFiltroSt").value = fullFiltroSt;
+    $("fullBusca").value = fullBusca;
   }
   // se alguém está digitando uma quantidade, salva antes de redesenhar (evita erro ao trocar o HTML)
   const foco = document.activeElement;
@@ -1246,11 +1287,10 @@ function renderFull(){
   const tot = fullItens.reduce((s, i) => s + i.quantidade, 0);
   const feitas = fullItens.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
   const nSt = k => fullItens.filter(i => stDe(i) === k).length;
+  const semColab = fullItens.filter(i => stDe(i) === "producao" && !i.colaborador).length;
   $("fullResumo").innerHTML =
     `<div class="kpi k-aguardando"><span>Sem transferência</span><b>${fullItens.filter(semTransf).length}</b></div>` +
-    `<div class="kpi k-separando"><span>Separando</span><b>${nSt("separando")}</b></div>` +
-    `<div class="kpi k-producao"><span>Em produção</span><b>${nSt("producao")}</b></div>` +
-    `<div class="kpi k-concluido"><span>Concluídos</span><b>${nSt("concluido")} de ${fullItens.length}</b></div>` +
+    `<div class="kpi ${semColab ? "k-aguardando" : ""}"><span>Produção sem colaborador</span><b>${semColab}</b></div>` +
     `<div class="kpi"><span>Peças produzidas</span><b>${feitas} de ${tot}</b></div>` +
     `<div class="kpi ${tot - feitas ? "crit" : ""}"><span>Faltam peças</span><b>${tot - feitas}</b></div>`;
 
@@ -1261,18 +1301,24 @@ function renderFull(){
     <div class="fprog-top"><b>${cheio ? "✓ Full concluído" : "Conclusão do Full"}</b><span><strong>${pct}%</strong> · ${feitas} de ${tot} peças · ${nSt("concluido")} de ${fullItens.length} SKUs concluídos</span></div>
     <div class="fprog-bar" role="progressbar" aria-label="Conclusão do Full" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${tot ? 100 * feitas / tot : 0}%"></i></div>`;
 
+  // abas: Separando → Em produção → Concluído
+  const ABAS = [["separando", "Separando", "📦"], ["producao", "Em produção", "🛠"], ["concluido", "Concluído", "✓"]];
+  $("fullAbas").innerHTML = ABAS.map(([k, lbl, ic]) =>
+    `<button type="button" role="tab" class="ab-${k}" data-fa="aba" data-aba="${k}" aria-selected="${fullAba === k}"><span aria-hidden="true">${ic}</span>${lbl}<span class="cnt">${nSt(k)}</span></button>`).join("");
+
   const q = semAcento(fullBusca.trim());
-  const passaSt = i => !fullFiltroSt || (fullFiltroSt === "abertos" ? stDe(i) !== "concluido" : fullFiltroSt === "semtransf" ? semTransf(i) : stDe(i) === fullFiltroSt);
-  const vis = fullItens.filter(i => (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)) && passaSt(i));
+  const vis = fullItens.filter(i => stDe(i) === fullAba && (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)));
+  const VAZIO = { separando: "Nada para separar. Os itens que terminarem a separação estão em “Em produção”.",
+                  producao: "Nada em produção. Conclua a separação de um item para ele aparecer aqui.",
+                  concluido: "Nenhum item concluído ainda." };
   const coluna = (tipo, titulo) => {
-    const todos = fullItens.filter(i => tipoDe(i) === tipo), its = vis.filter(i => tipoDe(i) === tipo);
-    const pq = todos.reduce((s, i) => s + i.quantidade, 0), pp = todos.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
-    // em produção primeiro, depois separando, concluídos por último
-    const ordemSt = { producao: 0, separando: 1, concluido: 2 };
-    its.sort((a, b) => ordemSt[stDe(a)] - ordemSt[stDe(b)] || a.ordem - b.ordem);
-    return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${todos.length} SKUs · ${pp} de ${pq} peças</span></div>
-      ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${todos.length ? "Nenhum item neste filtro." : "Nenhum item neste envio."}</div>`}</section>`;
+    const its = vis.filter(i => tipoDe(i) === tipo);
+    const pecas = its.reduce((s, i) => s + i.quantidade, 0);
+    its.sort((a, b) => a.ordem - b.ordem);
+    return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${its.length} SKUs · ${pecas} peças</span></div>
+      ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${q ? "Nenhum item nesta pesquisa." : "Nenhum item nesta etapa."}</div>`}</section>`;
   };
+  if(!vis.length && !q){ $("fullBody").innerHTML = `<div class="empty"><strong>${ABAS.find(a => a[0] === fullAba)[1]}</strong>${VAZIO[fullAba]}</div>`; return; }
   $("fullBody").innerHTML = `<div class="full-cols">${coluna("par", "Pares")}${coluna("lado", "Só lado")}</div>`;
 }
 
@@ -1283,7 +1329,7 @@ async function salvarItemFull(it, patch, erroPadrao){
   const { data, error } = await sb.from("full_itens").update(patch).eq("id", it.id).select("id");
   if(error || !data || !data.length){
     Object.assign(it, antes); renderFull();
-    showBanner(error && /transfer[eê]ncia do Base/i.test(error.message || "") ? "Marque “Fez a transferência do Base” antes de concluir este item."
+    showBanner(error && /transfer[eê]ncia do Base/i.test(error.message || "") ? "Marque “Fez a transferência do Base” primeiro."
       : errMsg(error || { code: "sem_permissao" }, erroPadrao));
   }
 }
@@ -1291,7 +1337,8 @@ const marcaStatus = st => ({ status: st, status_por: me, status_em: new Date().t
 
 function setTransferido(id, marcado){
   const it = fullItens.find(x => x.id === id); if(!it) return;
-  if(!marcado && stDe(it) === "concluido"){ renderFull(); return; }   // concluído: volte o status antes de desmarcar
+  // depois que a separação foi concluída a marcação fica fixa
+  if(!marcado && stDe(it) !== "separando"){ renderFull(); return; }
   const patch = marcado
     ? { transferido: true, transferido_por: me, transferido_em: new Date().toISOString() }
     : { transferido: false, transferido_por: null, transferido_em: null };
@@ -1303,22 +1350,24 @@ function setProduzido(id, val){
   val = Math.max(0, Math.floor(Number(val) || 0));
   if(val === it.produzido){ renderFull(); return; }
   const patch = { produzido: val };
-  // completou a quantidade → Concluído (só com a transferência marcada); voltou a faltar peça → Em produção
-  if(val >= it.quantidade && stDe(it) !== "concluido"){
-    if(it.transferido) Object.assign(patch, marcaStatus("concluido"));
-    else {
-      if(stDe(it) === "separando") Object.assign(patch, marcaStatus("producao"));
-      showBanner(`${it.sku}: quantidade completa. Marque “Fez a transferência do Base” para concluir.`);
-    }
+  // a quantidade é da etapa de produção; ao completar, o item vai para Concluído
+  if(val >= it.quantidade && stDe(it) === "producao" && it.transferido){
+    Object.assign(patch, marcaStatus("concluido"));
+    showBanner(`${it.sku} concluído e movido para a aba “Concluído”.`);
   }
-  else if(val < it.quantidade && stDe(it) === "concluido") Object.assign(patch, marcaStatus("producao"));
-  else if(val > 0 && stDe(it) === "separando") Object.assign(patch, marcaStatus("producao"));
   return salvarItemFull(it, patch, "Não foi possível salvar a quantidade. Tente de novo.");
+}
+
+function setColaborador(id, nome){
+  const it = fullItens.find(x => x.id === id); if(!it || (it.colaborador || "") === nome) return;
+  return salvarItemFull(it, { colaborador: nome || null }, "Não foi possível salvar o colaborador. Tente de novo.");
 }
 
 function setStatusFull(id, st){
   const it = fullItens.find(x => x.id === id); if(!it || stDe(it) === st) return;
-  if(st === "concluido" && !it.transferido){ showBanner("Marque “Fez a transferência do Base” antes de concluir este item."); return; }
+  if((st === "concluido" || (st === "producao" && stDe(it) === "separando")) && !it.transferido){
+    showBanner("Marque “Fez a transferência do Base” primeiro."); return;
+  }
   const patch = marcaStatus(st);
   if(st === "concluido" && it.produzido < it.quantidade) patch.produzido = it.quantidade;   // concluído = quantidade toda feita
   return salvarItemFull(it, patch, "Não foi possível mudar o status. Tente de novo.");
@@ -1327,7 +1376,7 @@ function setStatusFull(id, st){
 $("fullEnvio").addEventListener("change", e => { fullSel = e.target.value; fullDelEnvio = false; fullDelItem = null; carregarFull(); });
 $("fullConteudo").addEventListener("input", e => { if(e.target.id === "fullBusca"){ fullBusca = e.target.value; renderFull(); } });
 $("fullConteudo").addEventListener("change", e => {
-  if(e.target.id === "fullFiltroSt"){ fullFiltroSt = e.target.value; renderFull(); return; }
+  if(e.target.matches('select[data-fa="colab"]')) return setColaborador(e.target.closest(".fitem").dataset.id, e.target.value);
   if(e.target.matches('input[data-fa="transf"]')) return setTransferido(e.target.closest(".fitem").dataset.id, e.target.checked);
   if(e.target.matches('input[data-fa="set"]')) setProduzido(e.target.closest(".fitem").dataset.id, e.target.value);
 });
@@ -1345,6 +1394,7 @@ $("fullConteudo").addEventListener("click", async e => {
     finally{ b.disabled = false; b.textContent = txt; }
     return;
   }
+  if(fa === "aba"){ fullAba = b.dataset.aba; fullDelItem = null; renderFull(); return; }
   if(fa === "delEnvio"){ fullDelEnvio = true; renderFull(); return; }
   if(fa === "delNao"){ fullDelEnvio = false; renderFull(); return; }
   if(fa === "delSim"){
@@ -1357,6 +1407,10 @@ $("fullConteudo").addEventListener("click", async e => {
   const el = b.closest(".fitem"); if(!el) return;
   const it = fullItens.find(x => x.id === el.dataset.id); if(!it) return;
   if(fa === "status") return setStatusFull(it.id, b.dataset.st);
+  if(fa === "avancar") return setStatusFull(it.id, "producao");
+  if(fa === "concluirProd") return setStatusFull(it.id, "concluido");
+  if(fa === "voltarSep") return setStatusFull(it.id, "separando");
+  if(fa === "reabrir") return setStatusFull(it.id, "producao");
   if(fa === "mais") return setProduzido(it.id, it.produzido + 1);
   if(fa === "menos") return setProduzido(it.id, it.produzido - 1);
   if(fa === "excluir"){ fullDelItem = it.id; renderFull(); return; }
