@@ -91,6 +91,14 @@ update public.full_itens
    set tipo = case when upper(btrim(sku)) like 'PAR%' then 'par' else 'lado' end
  where tipo is distinct from case when upper(btrim(sku)) like 'PAR%' then 'par' else 'lado' end;
 
+-- Status de cada item: Separando -> Em produção -> Concluído (toda a equipe pode mudar)
+alter table public.full_itens add column if not exists status text not null default 'separando';
+alter table public.full_itens add column if not exists status_por text;
+alter table public.full_itens add column if not exists status_em timestamptz;
+alter table public.full_itens drop constraint if exists full_itens_status_check;
+alter table public.full_itens add constraint full_itens_status_check
+  check (status in ('separando','producao','concluido'));
+
 -- Tempo real
 do $$
 begin

@@ -275,6 +275,19 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-bar i{display:block;height:100%;background:var(--accent)}
 .fitem.ok .fi-bar i{background:var(--ok)}
 .fi-g{grid-column:1/-1;display:flex;gap:6px}
+.fi-st{grid-column:1/-1;display:flex;gap:4px;flex-wrap:wrap;order:5}
+.fi-st button{flex:1;min-width:92px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 8px;font-size:12px;font-weight:700;letter-spacing:.02em;cursor:pointer;color:var(--muted)}
+.fi-st button:hover{border-color:var(--fg);color:var(--fg)}
+.fi-st button.s-separando[aria-pressed="true"]{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.fi-st button.s-producao[aria-pressed="true"]{background:var(--steel);color:var(--steel-ink);border-color:var(--steel)}
+.fi-st button.s-concluido[aria-pressed="true"]{background:var(--ok);color:#fff;border-color:var(--ok)}
+.fi-quem{grid-column:1/-1;font-size:11px;color:var(--muted);order:6}
+.fi-g{order:7}
+.fitem.st-separando{box-shadow:inset 4px 0 0 var(--warn)}
+.fitem.st-producao{box-shadow:inset 4px 0 0 var(--steel)}
+.fitem.st-concluido{box-shadow:inset 4px 0 0 var(--ok)}
+.kpi.k-separando b{color:var(--warn)}
+.kpi.k-concluido b{color:var(--ok)}
 .fi-g button{font-size:12px;padding:3px 8px}
 .fcol .empty{border:0;border-radius:0}
 
@@ -923,7 +936,7 @@ $("metTable").addEventListener("click", e => {
 
 /* ---------- Full Mercado Livre ---------- */
 let fullEnvios = [], fullItens = [], fullLoaded = false, fullErro = false, fullSel = "";
-let fullBusca = "", fullOcultarOk = false, fullDelEnvio = false, fullDelItem = null;
+let fullBusca = "", fullFiltroSt = "", fullDelEnvio = false, fullDelItem = null;
 let fullPrevia = null, carregandoFull = 0, fullRenderPendente = false;
 
 async function carregarFull(){
@@ -949,16 +962,25 @@ async function carregarFull(){
   if(view === "full") renderFull(); else atualizarFullBadge();
 }
 
+/* Status de cada item do Full */
+const FULL_ST = [["separando", "Separando"], ["producao", "Em produção"], ["concluido", "Concluído"]];
+const FULL_ST_ORD = { separando: 0, producao: 1, concluido: 2 };
+const stDe = i => FULL_ST_ORD[i.status] != null ? i.status : "separando";
+
 function atualizarFullBadge(){
-  $("fullBadge").textContent = fullItens.filter(i => i.produzido < i.quantidade).length || "";
+  $("fullBadge").textContent = fullItens.filter(i => stDe(i) !== "concluido").length || "";
 }
 
 function fullItemHTML(i, g){
-  const ok = i.produzido >= i.quantidade;
+  const st = stDe(i), ok = st === "concluido";
   const p = Math.min(100, Math.round(100 * i.produzido / i.quantidade));
   const id = esc(i.id);
-  return `<div class="fitem ${ok ? "ok" : ""}" data-id="${id}">
+  return `<div class="fitem st-${st} ${ok ? "ok" : ""}" data-id="${id}">
     <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${esc(i.sku)}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
+    <div class="fi-st" role="group" aria-label="Status de ${esc(i.sku)}">
+      ${FULL_ST.map(([k, lbl]) => `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}">${lbl}</button>`).join("")}
+    </div>
+    ${i.status_por ? `<div class="fi-quem">${FULL_ST.find(s => s[0] === st)[1]} · ${esc(i.status_por)} em ${fmtDT(Date.parse(i.status_em))}</div>` : ""}
     <div class="fi-qty">
       <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}">−</button>
       <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}">
@@ -994,12 +1016,17 @@ function renderFull(){
   if(!$("fullBody")){
     box.innerHTML = `<div class="full-tools">
         <input type="search" id="fullBusca" placeholder="🔍 Pesquisar SKU ou descrição…" aria-label="Pesquisar SKU ou descrição" maxlength="60">
-        <label><input type="checkbox" id="fullOcultar"> Esconder os já concluídos</label>
+        <label class="sr" for="fullFiltroSt">Filtrar por status</label>
+        <select id="fullFiltroSt" style="width:auto;min-width:170px;background:var(--surface)">
+          <option value="">Todos os status</option>
+          <option value="abertos">Não concluídos</option>
+          ${FULL_ST.map(([k, lbl]) => `<option value="${k}">${lbl}</option>`).join("")}
+        </select>
         <span class="del" id="fullDelBox"></span>
       </div>
       <div class="kpis" id="fullResumo"></div>
       <div id="fullBody"></div>`;
-    $("fullBusca").value = fullBusca; $("fullOcultar").checked = fullOcultarOk;
+    $("fullBusca").value = fullBusca; $("fullFiltroSt").value = fullFiltroSt;
   }
   $("fullDelBox").innerHTML = !g ? "" : fullDelEnvio
     ? `Excluir este envio inteiro? <button type="button" class="btn btn-danger btn-sm" data-fa="delSim">Sim, excluir</button> <button type="button" class="btn btn-ghost btn-sm" data-fa="delNao">Não</button>`
@@ -1007,42 +1034,64 @@ function renderFull(){
 
   const tot = fullItens.reduce((s, i) => s + i.quantidade, 0);
   const feitas = fullItens.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
-  const skusOk = fullItens.filter(i => i.produzido >= i.quantidade).length;
+  const nSt = k => fullItens.filter(i => stDe(i) === k).length;
   $("fullResumo").innerHTML =
-    `<div class="kpi"><span>SKUs prontos</span><b>${skusOk} de ${fullItens.length}</b></div>` +
-    `<div class="kpi"><span>Peças no envio</span><b>${tot}</b></div>` +
-    `<div class="kpi"><span>Peças produzidas</span><b>${feitas}</b></div>` +
-    `<div class="kpi ${tot - feitas ? "crit" : ""}"><span>Faltam</span><b>${tot - feitas}</b></div>` +
-    `<div class="kpi"><span>Concluído</span><b>${tot ? Math.round(100 * feitas / tot) : 0}%</b></div>`;
+    `<div class="kpi k-separando"><span>Separando</span><b>${nSt("separando")}</b></div>` +
+    `<div class="kpi k-producao"><span>Em produção</span><b>${nSt("producao")}</b></div>` +
+    `<div class="kpi k-concluido"><span>Concluídos</span><b>${nSt("concluido")} de ${fullItens.length}</b></div>` +
+    `<div class="kpi"><span>Peças produzidas</span><b>${feitas} de ${tot}</b></div>` +
+    `<div class="kpi ${tot - feitas ? "crit" : ""}"><span>Faltam peças</span><b>${tot - feitas}</b></div>`;
 
   const q = semAcento(fullBusca.trim());
-  const vis = fullItens.filter(i => (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)) && !(fullOcultarOk && i.produzido >= i.quantidade));
+  const passaSt = i => !fullFiltroSt || (fullFiltroSt === "abertos" ? stDe(i) !== "concluido" : stDe(i) === fullFiltroSt);
+  const vis = fullItens.filter(i => (!q || semAcento(i.sku + " " + (i.descricao || "")).includes(q)) && passaSt(i));
   const coluna = (tipo, titulo) => {
     const todos = fullItens.filter(i => tipoDe(i) === tipo), its = vis.filter(i => tipoDe(i) === tipo);
     const pq = todos.reduce((s, i) => s + i.quantidade, 0), pp = todos.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
-    its.sort((a, b) => (a.produzido >= a.quantidade) - (b.produzido >= b.quantidade) || a.ordem - b.ordem);
+    // em produção primeiro, depois separando, concluídos por último
+    const ordemSt = { producao: 0, separando: 1, concluido: 2 };
+    its.sort((a, b) => ordemSt[stDe(a)] - ordemSt[stDe(b)] || a.ordem - b.ordem);
     return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${todos.length} SKUs · ${pp} de ${pq} peças</span></div>
       ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${todos.length ? "Nenhum item neste filtro." : "Nenhum item neste envio."}</div>`}</section>`;
   };
   $("fullBody").innerHTML = `<div class="full-cols">${coluna("par", "Pares")}${coluna("lado", "Só lado")}</div>`;
 }
 
-async function setProduzido(id, val){
+// Salva uma mudança no item: mostra na hora e desfaz se o servidor recusar
+async function salvarItemFull(it, patch, erroPadrao){
+  const antes = {}; for(const k in patch) antes[k] = it[k];
+  Object.assign(it, patch); renderFull();
+  const { data, error } = await sb.from("full_itens").update(patch).eq("id", it.id).select("id");
+  if(error || !data || !data.length){
+    Object.assign(it, antes); renderFull();
+    showBanner(errMsg(error || { code: "sem_permissao" }, erroPadrao));
+  }
+}
+const marcaStatus = st => ({ status: st, status_por: me, status_em: new Date().toISOString() });
+
+function setProduzido(id, val){
   const it = fullItens.find(x => x.id === id); if(!it) return;
   val = Math.max(0, Math.floor(Number(val) || 0));
   if(val === it.produzido){ renderFull(); return; }
-  const antes = it.produzido; it.produzido = val; renderFull();
-  const { data, error } = await sb.from("full_itens").update({ produzido: val }).eq("id", id).select("id");
-  if(error || !data || !data.length){
-    it.produzido = antes; renderFull();
-    showBanner(errMsg(error || { code: "sem_permissao" }, "Não foi possível salvar a quantidade. Tente de novo."));
-  }
+  const patch = { produzido: val };
+  // completou a quantidade → Concluído; voltou a faltar peça num concluído → Em produção
+  if(val >= it.quantidade && stDe(it) !== "concluido") Object.assign(patch, marcaStatus("concluido"));
+  else if(val < it.quantidade && stDe(it) === "concluido") Object.assign(patch, marcaStatus("producao"));
+  else if(val > 0 && stDe(it) === "separando") Object.assign(patch, marcaStatus("producao"));
+  return salvarItemFull(it, patch, "Não foi possível salvar a quantidade. Tente de novo.");
+}
+
+function setStatusFull(id, st){
+  const it = fullItens.find(x => x.id === id); if(!it || stDe(it) === st) return;
+  const patch = marcaStatus(st);
+  if(st === "concluido" && it.produzido < it.quantidade) patch.produzido = it.quantidade;   // concluído = quantidade toda feita
+  return salvarItemFull(it, patch, "Não foi possível mudar o status. Tente de novo.");
 }
 
 $("fullEnvio").addEventListener("change", e => { fullSel = e.target.value; fullDelEnvio = false; fullDelItem = null; carregarFull(); });
 $("fullConteudo").addEventListener("input", e => { if(e.target.id === "fullBusca"){ fullBusca = e.target.value; renderFull(); } });
 $("fullConteudo").addEventListener("change", e => {
-  if(e.target.id === "fullOcultar"){ fullOcultarOk = e.target.checked; renderFull(); return; }
+  if(e.target.id === "fullFiltroSt"){ fullFiltroSt = e.target.value; renderFull(); return; }
   if(e.target.matches('input[data-fa="set"]')) setProduzido(e.target.closest(".fitem").dataset.id, e.target.value);
 });
 $("fullConteudo").addEventListener("keydown", e => { if(e.key === "Enter" && e.target.matches('input[data-fa="set"]')) e.target.blur(); });
@@ -1063,6 +1112,7 @@ $("fullConteudo").addEventListener("click", async e => {
   }
   const el = b.closest(".fitem"); if(!el) return;
   const it = fullItens.find(x => x.id === el.dataset.id); if(!it) return;
+  if(fa === "status") return setStatusFull(it.id, b.dataset.st);
   if(fa === "mais") return setProduzido(it.id, it.produzido + 1);
   if(fa === "menos") return setProduzido(it.id, it.produzido - 1);
   if(fa === "excluir"){ fullDelItem = it.id; renderFull(); return; }
