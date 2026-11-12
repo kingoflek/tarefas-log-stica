@@ -330,7 +330,7 @@ textarea{resize:vertical;min-height:72px}
       <div class="mtable-wrap"><table class="mtable" id="metTable"></table></div>
       <p class="met-nota">
         <b>Como ler:</b> conta as tarefas <b>criadas no período</b>.
-        <b>Tempo médio</b> vai da atribuição até a conclusão; a barra fica vermelha quando passa de 1,5× a média da equipe.
+        <b>Tempo médio</b> vai da atribuição até a conclusão e conta só o expediente: segunda a sexta, das 7h às 17h (1 dia útil = 10 h). Noites e fins de semana não entram. A barra fica vermelha quando passa de 1,5× a média da equipe.
         <b>No prazo</b> considera só as concluídas que tinham prazo.
         <b>Retrabalho</b> é a parte das tarefas que a conferência devolveu para refazer.
         <b>Nota</b> (0 a 100) = 40% no prazo + 30% sem retrabalho + 30% rapidez (comparada a quem foi mais rápido no período). Só aparece com pelo menos 3 tarefas concluídas no período.
@@ -674,14 +674,32 @@ function render(){
 let metDias = 30, metOrd = "nota";
 const ymd = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const num1 = x => (x < 10 ? x.toFixed(1).replace(".", ",") : String(Math.round(x)));
+/* Expediente: só conta de segunda a sexta, das 7h às 17h (10 h por dia útil) */
+const EXP_INI = 7, EXP_FIM = 17, H_DIA = EXP_FIM - EXP_INI;
+function msUteis(a, b){
+  if(!(b > a)) return 0;
+  let total = 0;
+  const d = new Date(a); d.setHours(0, 0, 0, 0);
+  while(d.getTime() < b){
+    const dow = d.getDay();                       // 0 = domingo, 6 = sábado
+    if(dow !== 0 && dow !== 6){
+      const ini = new Date(d); ini.setHours(EXP_INI, 0, 0, 0);
+      const fim = new Date(d); fim.setHours(EXP_FIM, 0, 0, 0);
+      const x = Math.max(a, ini.getTime()), y = Math.min(b, fim.getTime());
+      if(y > x) total += y - x;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return total;
+}
 function fmtDur(ms){
   if(ms == null) return "—";
   const min = ms / 6e4;
-  if(min < 60) return Math.max(1, Math.round(min)) + " min";
+  if(min < 60) return Math.round(min) + " min";
   const h = min / 60;
-  if(h < 24) return num1(h) + " h";
-  const d = h / 24;
-  return num1(d) + (d < 1.95 ? " dia" : " dias");
+  if(h < H_DIA) return num1(h) + " h";
+  const d = h / H_DIA;
+  return num1(d) + (d < 1.95 ? " dia útil" : " dias úteis");
 }
 const pct = x => x == null ? "—" : Math.round(x * 100) + "%";
 const media = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
@@ -698,7 +716,7 @@ function calcMetricas(){
   const linhas = USERS.map(nome => {
     const ts = base.filter(t => t.responsavel === nome);
     const done = ts.filter(t => t.status === "concluida" && t.concluidoEm && t.criadoEm);
-    const tempos = done.map(t => Math.max(0, t.concluidoEm - t.criadoEm));
+    const tempos = done.map(t => msUteis(t.criadoEm, t.concluidoEm));
     const comPrazo = done.filter(t => t.prazo);
     const noPrazo = comPrazo.filter(t => ymd(new Date(t.concluidoEm)) <= t.prazo.slice(0, 10)).length;
     const devolvidas = ts.filter(t => t.devolucao && t.devolucao.motivo);
@@ -721,7 +739,8 @@ function calcMetricas(){
     if(l.pctPrazo != null) partes.push([0.4, l.pctPrazo]);
     if(l.pctRetrab != null) partes.push([0.3, 1 - l.pctRetrab]);
     // rapidez: 1 para o mais rápido; cai de forma suave para quem demora mais
-    partes.push([0.3, l.media > 0 ? Math.sqrt(Math.min(1, maisRapido / l.media)) : 1]);
+    const piso = 15 * 6e4;   // abaixo de 15 min úteis, todos contam como igualmente rápidos
+    partes.push([0.3, Math.sqrt(Math.min(1, Math.max(maisRapido, piso) / Math.max(l.media, piso)))]);
     const peso = partes.reduce((s, p) => s + p[0], 0);
     l.nota = Math.round(100 * partes.reduce((s, p) => s + p[0] * p[1], 0) / peso);
   });
