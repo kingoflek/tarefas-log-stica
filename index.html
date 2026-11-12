@@ -441,6 +441,14 @@ body.fora .stage{align-items:center;justify-content:center;padding:24px 16px}
 .fcol{border-radius:16px}
 .fcol.par .fcol-h{border-top:0;box-shadow:inset 0 3px 0 var(--steel)}
 .fcol.lado .fcol-h{border-top:0;box-shadow:inset 0 3px 0 var(--lado)}
+.fcol.todos .fcol-h{border-top:0;box-shadow:inset 0 3px 0 var(--accent)}
+/* Distribuidora: coluna única; em tela larga os itens ficam lado a lado */
+.full-cols.um{grid-template-columns:minmax(0,1fr)}
+@media (min-width:1100px){
+  .full-cols.um .fcol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .full-cols.um .fcol-h,.full-cols.um .fcol .empty{grid-column:1/-1}
+  .full-cols.um .fitem:nth-child(even){border-right:1px solid var(--line)}
+}
 .task{border-radius:14px}
 input,select,textarea{border-radius:10px;background:var(--surface)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
@@ -1169,6 +1177,7 @@ const CANAIS = {
 const telaFull = () => view === "full" || view === "dist";
 const canalAtual = () => view === "dist" ? "dist" : "ml";
 const C = () => CANAIS[canalAtual()];
+const soLado = () => canalAtual() === "dist";   // Distribuidora só manda lado: sem a divisão Pares | Só lado
 let canalCarregado = "ml", pendentesCanal = { ml: 0, dist: 0 };
 const fullSelPorCanal = {};
 // nome sugerido ao importar: "Full #79752152" / "Pedido #12345", ou com a data se não achar o número
@@ -1424,14 +1433,16 @@ function renderFull(){
                   producao: "Nada em produção. Conclua a separação de um item para ele aparecer aqui.",
                   concluido: "Nenhum item concluído ainda." };
   const coluna = (tipo, titulo) => {
-    const its = vis.filter(i => tipoDe(i) === tipo);
+    const its = vis.filter(i => tipo === "todos" || tipoDe(i) === tipo);
     const pecas = its.reduce((s, i) => s + i.quantidade, 0);
     its.sort((a, b) => a.ordem - b.ordem);
     return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${its.length} SKUs · ${pecas} peças</span></div>
       ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${q ? "Nenhum item nesta pesquisa." : "Nenhum item nesta etapa."}</div>`}</section>`;
   };
   if(!vis.length && !q){ $("fullBody").innerHTML = `<div class="empty"><strong>${ABAS.find(a => a[0] === fullAba)[1]}</strong>${VAZIO[fullAba]}</div>`; return; }
-  $("fullBody").innerHTML = `<div class="full-cols">${coluna("par", "Pares")}${coluna("lado", "Só lado")}</div>`;
+  // Distribuidora só manda lado: uma coluna única com todos os itens; o Full mantém Pares | Só lado
+  $("fullBody").innerHTML = soLado() ? `<div class="full-cols um">${coluna("todos", "Itens do pedido")}</div>`
+    : `<div class="full-cols">${coluna("par", "Pares")}${coluna("lado", "Só lado")}</div>`;
 }
 
 // Salva uma mudança no item: mostra na hora e desfaz se o servidor recusar
@@ -1575,8 +1586,8 @@ async function baixarPdfFull(){
   doc.setTextColor(0);
 
   let y = 27;
-  for(const [tipo, titulo] of [["par", "PARES"], ["lado", "SÓ LADO"]]){
-    const its = ordenar(fullItens.filter(i => tipoDe(i) === tipo));
+  for(const [tipo, titulo] of (soLado() ? [["todos", "ITENS DO PEDIDO"]] : [["par", "PARES"], ["lado", "SÓ LADO"]])){
+    const its = ordenar(fullItens.filter(i => tipo === "todos" || tipoDe(i) === tipo));
     if(!its.length) continue;
     const pecas = its.reduce((s, i) => s + i.quantidade, 0);
     doc.autoTable({
@@ -1664,10 +1675,10 @@ function renderHistorico(){
         <div class="hinfo">Importado em ${fmtDT(Date.parse(e.criado_em))}${e.criado_por ? ` por <b>${esc(e.criado_por)}</b>` : ""}${e.arquivo ? ` · arquivo ${esc(e.arquivo)}` : ""}
           <button type="button" class="btn btn-ghost btn-sm" data-ha="pdf">⬇ Relatório em PDF</button></div>
         <div class="mtable-wrap"><table class="mtable htable">
-          <thead><tr><th>SKU</th><th>Tipo</th><th class="r">Qtd.</th><th>Transferência do Base</th><th>Separação</th><th>Colaborador</th><th>Concluído</th><th>Tempo de produção</th></tr></thead>
+          <thead><tr><th>SKU</th>${soLado() ? "" : "<th>Tipo</th>"}<th class="r">Qtd.</th><th>Transferência do Base</th><th>Separação</th><th>Colaborador</th><th>Concluído</th><th>Tempo de produção</th></tr></thead>
           <tbody>${its.map(i => `<tr>
             <td><b class="sku">${esc(i.sku)}</b>${i.descricao ? `<div class="hdesc">${esc(i.descricao.replace(/\s*·\s*Cód\. ML.*$/, ""))}</div>` : ""}</td>
-            <td>${tipoDe(i) === "par" ? "Par" : "Só lado"}</td>
+            ${soLado() ? "" : `<td>${tipoDe(i) === "par" ? "Par" : "Só lado"}</td>`}
             <td class="r">${i.produzido}/${i.quantidade}</td>
             <td>${esc(quemQuando(i.transferido_por, i.transferido_em))}</td>
             <td>${esc(quemQuando(i.separado_por, i.separado_em))}</td>
@@ -2129,12 +2140,12 @@ function renderPrevia(){
   if(!P){ box.innerHTML = ""; return; }
   box.innerHTML = `
     <div class="ptable-wrap"><table class="ptable">
-      <thead><tr><th>SKU</th><th>Descrição</th><th>Qtd.</th><th>Tipo</th><th></th></tr></thead>
+      <thead><tr><th>SKU</th><th>Descrição</th><th>Qtd.</th>${soLado() ? "" : "<th>Tipo</th>"}<th></th></tr></thead>
       <tbody>${P.itens.map((i, k) => `<tr data-k="${k}">
         <td><input data-pf="sku" value="${esc(i.sku)}" maxlength="60" style="font-family:var(--font-mono)" aria-label="SKU"></td>
         <td><input data-pf="descricao" value="${esc(i.descricao)}" maxlength="200" aria-label="Descrição"></td>
         <td><input class="q" type="number" min="1" data-pf="quantidade" value="${esc(i.quantidade)}" aria-label="Quantidade"></td>
-        <td class="ptipo">${tipoTag(i.sku)}</td>
+        ${soLado() ? "" : `<td class="ptipo">${tipoTag(i.sku)}</td>`}
         <td><button type="button" class="btn btn-ghost btn-sm" data-pa="rm" aria-label="Remover linha">✕</button></td>
       </tr>`).join("")}</tbody>
     </table></div>
@@ -2159,7 +2170,8 @@ function tipoTag(sku){
 }
 function resumoPrevia(){
   const it = fullPrevia.itens, c = t => it.filter(i => classificar(i.sku) === t).length;
-  $("prevSum").innerHTML = `${it.length} SKUs · ${c("par")} pares · ${c("lado")} só lado`;
+  const pecas = it.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+  $("prevSum").innerHTML = soLado() ? `${it.length} SKUs · ${pecas} peças` : `${it.length} SKUs · ${c("par")} pares · ${c("lado")} só lado`;
 }
 $("fullPrev").addEventListener("input", e => {
   const tr = e.target.closest("tr[data-k]"); if(!tr || !e.target.dataset.pf) return;
