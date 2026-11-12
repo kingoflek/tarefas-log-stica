@@ -5,29 +5,32 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Tarefas da Logística</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* Layout: barra de doca no topo; à esquerda o formulário de atribuição (só gestores), à direita a fila de tarefas como etiquetas de carga */
+/* Layout: menu lateral roxo à esquerda; conteúdo em cartões brancos sobre fundo claro */
 :root{
-  --bg:#eef1f4; --surface:#ffffff; --surface-2:#f6f8fa; --line:#d5dce3;
-  --fg:#16212c; --muted:#5b6a78; --accent:#f2a900; --accent-ink:#1b1400;
-  --steel:#24394d; --steel-ink:#ffffff;
-  --ok:#1f8a4c; --ok-bg:#e3f4ea; --warn:#b4570a; --warn-bg:#fdf0e1; --crit:#c0322b; --crit-bg:#fbe7e5;
-  --font-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --bg:#f5f3fa; --surface:#ffffff; --surface-2:#f8f7fc; --line:#e6e2f0;
+  --fg:#1c1530; --muted:#6c6483; --accent:#7c3aed; --accent-ink:#ffffff;
+  --steel:#3b1d6e; --steel-ink:#ffffff; --lado:#f0614f; --lado-ink:#ffffff;
+  --ok:#15803d; --ok-bg:#e7f6ec; --warn:#b45309; --warn-bg:#fdf1e2; --crit:#dc2626; --crit-bg:#fdecec;
+  --shadow:0 1px 2px rgba(28,21,48,.04),0 4px 14px rgba(28,21,48,.04);
+  --font-display:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f161d; --surface:#18222c; --surface-2:#1e2a35; --line:#2d3b48;
-  --fg:#e6ecf1; --muted:#97a6b4; --accent:#f5b51f; --accent-ink:#1b1400;
-  --steel:#2c4760; --steel-ink:#ffffff;
-  --ok:#4cc483; --ok-bg:#16301f; --warn:#f0a25a; --warn-bg:#352512; --crit:#f27b72; --crit-bg:#3a1a18;
+  --bg:#110d1b; --surface:#1a1428; --surface-2:#211a32; --line:#322945;
+  --fg:#ece8f6; --muted:#a59dbd; --accent:#a78bfa; --accent-ink:#1a1030;
+  --steel:#6d4bc4; --steel-ink:#ffffff; --lado:#fb7d6c; --lado-ink:#1a1030;
+  --ok:#4ade80; --ok-bg:#12291b; --warn:#fbbf6a; --warn-bg:#33240f; --crit:#f87171; --crit-bg:#3a1717;
+  --shadow:none;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f161d; --surface:#18222c; --surface-2:#1e2a35; --line:#2d3b48;
-  --fg:#e6ecf1; --muted:#97a6b4; --accent:#f5b51f; --accent-ink:#1b1400;
-  --steel:#2c4760; --steel-ink:#ffffff;
-  --ok:#4cc483; --ok-bg:#16301f; --warn:#f0a25a; --warn-bg:#352512; --crit:#f27b72; --crit-bg:#3a1a18;
+  --bg:#110d1b; --surface:#1a1428; --surface-2:#211a32; --line:#322945;
+  --fg:#ece8f6; --muted:#a59dbd; --accent:#a78bfa; --accent-ink:#1a1030;
+  --steel:#6d4bc4; --steel-ink:#ffffff; --lado:#fb7d6c; --lado-ink:#1a1030;
+  --ok:#4ade80; --ok-bg:#12291b; --warn:#fbbf6a; --warn-bg:#33240f; --crit:#f87171; --crit-bg:#3a1717;
+  --shadow:none;
   color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -316,22 +319,144 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 
 @media (max-width:520px){.row2{grid-template-columns:1fr}.brand{font-size:24px}}
 @media (prefers-reduced-motion:no-preference){.task{transition:opacity .2s}}
+
+/* ===================== Visual novo: menu lateral + cartões ===================== */
+.shell{display:flex;min-height:100vh;min-height:100dvh}
+.side{position:sticky;top:0;height:100vh;height:100dvh;width:250px;flex:none;display:flex;flex-direction:column;gap:4px;
+  padding:20px 12px 14px;color:#ece6fa;overflow-y:auto;
+  background:linear-gradient(180deg,#24104a 0%,#33166a 50%,#45208c 100%)}
+.logo{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#a78bfa,#7c3aed);box-shadow:0 4px 12px rgba(124,58,237,.45)}
+.side-brand{display:flex;align-items:center;gap:10px;padding:0 8px 14px;font-weight:800;font-size:18px;letter-spacing:.01em;color:#fff;line-height:1.15}
+.side-brand small{display:block;font-weight:500;font-size:11px;opacity:.6;letter-spacing:.03em}
+.side-nav{display:flex;flex-direction:column;gap:2px}
+.side-sec{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(236,230,250,.45);padding:14px 10px 6px}
+.side-nav button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;
+  font-size:14px;font-weight:500;color:rgba(242,238,252,.8)}
+.side-nav button:hover{background:rgba(255,255,255,.08);color:#fff}
+.side-nav button[aria-selected="true"]{background:rgba(255,255,255,.15);color:#fff;font-weight:600;box-shadow:inset 3px 0 0 #c4b5fd}
+.side-nav button:focus-visible{outline:2px solid #c4b5fd;outline-offset:1px}
+.side-nav .ic{width:18px;height:18px;flex:none;opacity:.9}
+.side-nav .badge{margin-left:auto;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:700;font-size:11px}
+.side-nav .badge.late{background:#f43f5e}
+.side-nav .tab-late[aria-selected="true"]{box-shadow:inset 3px 0 0 #fb7185}
+.side-user{margin-top:auto;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px;align-items:center;
+  padding:12px 10px 4px;border-top:1px solid rgba(255,255,255,.12)}
+.avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#2a1150;background:#ddd6fe}
+.side-user .chip{background:none;padding:0;font-weight:600;color:#fff;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-user .role{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.65}
+.who-btns{grid-column:1/-1;display:flex;gap:6px}
+.who-btns .linkbtn{flex:1;border-color:rgba(255,255,255,.22);color:#ece6fa;font-size:12px;padding:6px 8px;border-radius:8px}
+
+.stage{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:8px;padding:14px max(20px,env(safe-area-inset-right,0px)) 14px 24px;font-size:13px;color:var(--muted);
+  background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar b{color:var(--fg);font-weight:600}
+main{max-width:1240px;width:100%;padding:24px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:901px){main{padding-left:24px;padding-right:24px}}
+
+/* tela de entrada: fundo roxo e cartão branco */
+body.fora{background:linear-gradient(140deg,#1f0d40 0%,#3b1a78 55%,#6d3ad6 100%);background-attachment:fixed}
+body.fora .stage{align-items:center;justify-content:center;padding:24px 16px}
+.pick{width:100%;max-width:660px;margin:0;background:var(--surface);border-radius:20px;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(15,5,40,.35)}
+.pick-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--fg);margin-bottom:18px}
+.pick h1{font-size:26px;font-weight:700;letter-spacing:-.01em}
+.pick-grid button{border-radius:14px;transition:border-color .15s,box-shadow .15s}
+.pick-grid button:hover{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.pick-grid strong{font-size:16px;font-weight:700;letter-spacing:0}
+.pick-grid button.g span{color:var(--accent)}
+
+/* tipografia: sem caixa-alta pesada, títulos em Inter */
+.pick h1,.panel h2,.list-head h2,.met-top h2,.fcol-h h3,.fprog-top b,.dest strong,.auth .who-big,.late-head b,.reset h3,.pick-grid strong{text-transform:none}
+.panel h2,.list-head h2,.met-top h2{font-weight:700;letter-spacing:-.01em}
+.panel h2{font-size:18px}
+.list-head h2,.met-top h2{font-size:22px}
+.fcol-h h3{font-size:17px;font-weight:700;letter-spacing:0}
+.fprog-top b{font-size:16px;font-weight:700;letter-spacing:0}
+.fprog-top strong{font-size:20px;font-weight:800}
+.kpi b{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.dest strong{font-size:19px;font-weight:700}
+.auth .who-big{font-size:22px;font-weight:700}
+.late-head b{font-size:18px}
+
+/* cartões, campos e botões mais suaves */
+.panel,.kpi,.fcol,.fprog,.mtable-wrap,.task,.empty,.stat{box-shadow:var(--shadow)}
+.panel{border-radius:16px;padding:20px}
+.kpi{border-radius:14px}
+.fcol{border-radius:16px}
+.fcol.par .fcol-h{border-top:0;box-shadow:inset 0 3px 0 var(--steel)}
+.fcol.lado .fcol-h{border-top:0;box-shadow:inset 0 3px 0 var(--lado)}
+.task{border-radius:14px}
+input,select,textarea{border-radius:10px;background:var(--surface)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
+.btn{border-radius:10px}
+.btn-primary{box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 35%,transparent)}
+.btn-ghost{background:var(--surface)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.seg{border-radius:10px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.badge{font-family:var(--font-body);font-weight:700}
+.acao{border-left-color:var(--accent)}
+.fi-bar i,.fprog-bar i{background:var(--accent)}
+.fprog-bar{height:12px;border:0}
+.fitem.st-producao{box-shadow:inset 4px 0 0 var(--accent)}
+.fi-st button.s-producao[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.prio input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mtable th button{letter-spacing:.04em}
+
+/* celular: menu vira barra no topo com as seções roláveis */
+@media (max-width:900px){
+  .shell{flex-direction:column}
+  .side{position:sticky;top:0;z-index:30;height:auto;width:auto;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;
+    padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+  .side-brand{padding:0;font-size:16px}
+  .side-brand small{display:none}
+  .side-nav{grid-column:1/-1;grid-row:2;flex-direction:row;overflow-x:auto;gap:4px;scrollbar-width:none}
+  .side-sec{display:none}
+  .side-nav button{white-space:nowrap;padding:7px 10px;font-size:13px}
+  .side-nav button[aria-selected="true"]{box-shadow:inset 0 -2px 0 #c4b5fd}
+  .side-user{grid-row:1;grid-column:2;margin:0;padding:0;border:0;display:flex;gap:8px}
+  .side-user .who-txt{display:none}
+  .who-btns .linkbtn{flex:none}
+  .topbar{display:none}
+  main{padding-top:16px}
+}
+@media (max-width:420px){.side-user .avatar{display:none}}
 </style>
 </head>
 <body>
 
-<header class="dock">
-  <div class="dock-in">
-    <div class="brand">Tarefas da Logística<small>Atribuição e conferência</small></div>
-    <div class="who" id="who" hidden>
-      <div><div class="role" id="whoRole"></div><div class="chip" id="whoName"></div></div>
+<div class="shell">
+<aside class="side" id="side" hidden>
+  <div class="side-brand">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>
+    <div>Logística<small>Tarefas · Full ML</small></div>
+  </div>
+  <nav class="side-nav" id="tabs" role="tablist" aria-orientation="vertical" aria-label="Seções">
+    <div class="side-sec">Operação</div>
+    <button type="button" role="tab" data-view="tarefas" aria-selected="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Tarefas</span></button>
+    <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg><span>Atrasadas</span><span class="badge late" id="lateBadge"></span></button>
+    <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m22 4-10 10-3-3"/></svg><span>Conferência</span><span class="badge" id="confBadge"></span></button>
+    <div class="side-sec">Mercado Livre</div>
+    <button type="button" role="tab" data-view="full" aria-selected="false" id="tabFull"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg><span>Full ML</span><span class="badge" id="fullBadge"></span></button>
+    <div class="side-sec" id="secGestao" hidden>Gestão</div>
+    <button type="button" role="tab" data-view="metricas" aria-selected="false" id="tabMet" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18M7 16v-5M12 16V8M17 16v-8"/></svg><span>Métricas</span></button>
+  </nav>
+  <div class="side-user who" id="who" hidden>
+    <span class="avatar" id="whoAvatar" aria-hidden="true"></span>
+    <div class="who-txt"><div class="chip" id="whoName"></div><div class="role" id="whoRole"></div></div>
+    <div class="who-btns">
       <button class="linkbtn" id="mudarSenha" type="button">Alterar senha</button>
       <button class="linkbtn" id="trocar" type="button">Sair</button>
     </div>
   </div>
-</header>
+</aside>
+
+<div class="stage">
+<div class="topbar" id="topbar" hidden><span>Logística</span><span aria-hidden="true">/</span><b id="crumb">Tarefas</b></div>
 
 <section class="pick" id="pick" hidden>
+  <div class="pick-brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>Logística</div>
   <h1>Quem é você?</h1>
   <p id="pickIntro">Escolha seu nome e digite sua senha.</p>
   <div class="pick-grid" id="pickGrid"></div>
@@ -393,13 +518,6 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
   </section>
 
   <section id="listSec" style="min-width:0">
-    <div class="tabs" id="tabs" role="tablist">
-      <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late">⚠ Atrasadas <span class="badge late" id="lateBadge"></span></button>
-      <button type="button" role="tab" data-view="tarefas" aria-selected="true">Tarefas</button>
-      <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden>Conferência <span class="badge" id="confBadge"></span></button>
-      <button type="button" role="tab" data-view="full" aria-selected="false" id="tabFull">Full ML <span class="badge" id="fullBadge"></span></button>
-      <button type="button" role="tab" data-view="metricas" aria-selected="false" id="tabMet" hidden>Métricas</button>
-    </div>
     <div id="fullSec" hidden>
       <div class="met-top">
         <h2>Full Mercado Livre</h2>
@@ -488,6 +606,8 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
     </div>
   </section>
 </main>
+</div><!-- /stage -->
+</div><!-- /shell -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -644,13 +764,15 @@ $("pwPanel").addEventListener("submit", async e => {
 function showApp(){
   const has = !!me;
   $("pick").hidden = has; $("app").hidden = !has; $("who").hidden = !has;
+  $("side").hidden = !has; $("topbar").hidden = !has; document.body.classList.toggle("fora", !has);
   if(!has){ renderPick(); return; }
   const g = isGestor(me);
   $("whoName").textContent = me;
+  $("whoAvatar").textContent = me.split(/\s+/).map(p => p[0]).slice(0, 2).join("");
   $("whoRole").textContent = g ? "Gestor" : "Executor";
   $("fltResp").hidden = !g;
   $("tabConf").hidden = !isConferente(me);
-  $("tabMet").hidden = !g;
+  $("tabMet").hidden = !g; $("secGestao").hidden = !g;
   if(view==="conferencia" && !isConferente(me)) view = "tarefas";
   if(view==="metricas" && !g) view = "tarefas";
   syncTabs();
@@ -709,6 +831,7 @@ function syncTabs(){
   document.querySelector(".filters .seg").hidden = view==="atrasadas";
   $("listTitle").textContent = view==="conferencia" ? "Conferência" : view==="atrasadas" ? "Atrasadas" : (isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas");
   $("listTitle").style.color = view==="atrasadas" ? "var(--crit)" : "";
+  $("crumb").textContent = ({ tarefas: isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas", atrasadas: "Atrasadas", conferencia: "Conferência", full: "Full Mercado Livre", metricas: "Métricas" })[view] || "";
   const g = isGestor(me), full = view==="full", met = view==="metricas" || full;  // telas de largura toda
   $("metrics").hidden = view!=="metricas";
   $("fullSec").hidden = !full;
@@ -1661,7 +1784,7 @@ function renderPrevia(){
 function tipoTag(sku){
   const t = classificar(sku);
   return t === "par" ? `<span class="pill" style="background:var(--steel);color:var(--steel-ink)">Par</span>`
-       : t === "lado" ? `<span class="pill" style="background:var(--accent);color:var(--accent-ink)">Só lado</span>`
+       : t === "lado" ? `<span class="pill" style="background:var(--lado);color:var(--lado-ink)">Só lado</span>`
        : `<span style="color:var(--muted);font-size:12px">—</span>`;
 }
 function resumoPrevia(){
