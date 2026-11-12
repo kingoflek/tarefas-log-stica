@@ -228,6 +228,11 @@ textarea{resize:vertical;min-height:72px}
 .tbar i.slow{background:var(--crit)}
 .tbar span{min-width:64px}
 .txt-crit{color:var(--crit);font-weight:700}
+.met-busca{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.met-busca input{max-width:360px;flex:1;min-width:200px;background:var(--surface)}
+.met-busca span{font-size:13px;color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mtable mark{background:var(--accent);color:var(--accent-ink);border-radius:3px;padding:0 1px}
 .met-nota{font-size:12px;color:var(--muted);margin:10px 2px 0;line-height:1.6}
 
 @media (max-width:520px){.row2{grid-template-columns:1fr}.brand{font-size:24px}}
@@ -327,6 +332,11 @@ textarea{resize:vertical;min-height:72px}
       </div>
       <div class="kpis" id="metKpis"></div>
       <div class="destaques" id="metDest"></div>
+      <div class="met-busca">
+        <label for="metBusca" class="sr">Pesquisar colaborador</label>
+        <input id="metBusca" type="search" placeholder="🔍 Pesquisar colaborador pelo nome…" autocomplete="off" maxlength="60">
+        <span id="metBuscaInfo"></span>
+      </div>
       <div class="mtable-wrap"><table class="mtable" id="metTable"></table></div>
       <p class="met-nota">
         <b>Como ler:</b> conta as tarefas <b>criadas no período</b>.
@@ -671,7 +681,8 @@ function render(){
 }
 
 /* ---------- Métricas (só gestores) ---------- */
-let metDias = 30, metOrd = "nota";
+let metDias = 30, metOrd = "nota", metBusca = "";
+const semAcento = s => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const ymd = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const num1 = x => (x < 10 ? x.toFixed(1).replace(".", ",") : String(Math.round(x)));
 /* Expediente: só conta de segunda a sexta, das 7h às 17h (10 h por dia útil) */
@@ -789,16 +800,28 @@ function renderMetricas(){
     return (dir === 1 ? -asc : asc) || a.nome.localeCompare(b.nome);
   });
   const maxMedia = Math.max(0, ...m.linhas.map(l => l.media || 0));
+  // busca por nome: ignora maiúsculas e acentos; a posição (#) continua a do ranking completo
+  const q = semAcento(metBusca.trim());
+  linhas.forEach((l, i) => l.pos = i + 1);
+  const visiveis = q ? linhas.filter(l => semAcento(l.nome).includes(q)) : linhas;
+  $("metBuscaInfo").textContent = q ? (visiveis.length ? `${visiveis.length} de ${linhas.length} colaboradores` : "") : "";
+  const marcar = nome => {
+    if(!q) return esc(nome);
+    const i = semAcento(nome).indexOf(q);
+    return i < 0 ? esc(nome) : esc(nome.slice(0, i)) + "<mark>" + esc(nome.slice(i, i + q.length)) + "</mark>" + esc(nome.slice(i + q.length));
+  };
   const head = `<thead><tr><th class="rank">#</th>` + MET_COLS.map(([k, lbl, , r]) =>
     `<th class="${r ? "r" : ""}" aria-sort="${k === metOrd ? (col[2] === 1 ? "descending" : "ascending") : "none"}"><button type="button" data-ord="${k}">${lbl}${k === metOrd ? (k === "nome" ? " ▲" : col[2] === 1 ? " ▼" : " ▲") : ""}</button></th>`).join("") + `</tr></thead>`;
-  const body = linhas.map((l, i) => {
+  const body = !visiveis.length
+    ? `<tr><td colspan="${MET_COLS.length + 1}" style="text-align:center;padding:24px;color:var(--muted)">Nenhum colaborador encontrado para “${esc(metBusca.trim())}”.</td></tr>`
+    : visiveis.map(l => {
     const notaCls = l.nota == null ? "" : l.nota >= 80 ? "hi" : l.nota >= 60 ? "mid" : "lo";
     const lento = l.media != null && m.mediaEquipe && l.media > 1.5 * m.mediaEquipe;
     const w = l.media != null && maxMedia ? Math.max(3, Math.round(90 * l.media / maxMedia)) : 0;
     return `<tr class="${l.total ? "" : "sem"}">
-      <td class="rank">${i + 1}</td>
+      <td class="rank">${l.pos}</td>
       <td>${l.nota == null ? `<span title="Precisa de 3 concluídas no período">—</span>` : `<span class="score ${notaCls}">${l.nota}</span>`}</td>
-      <td class="nome">${esc(l.nome)}</td>
+      <td class="nome">${marcar(l.nome)}</td>
       <td class="r">${l.done}</td>
       <td class="r">${l.pend}</td>
       <td>${l.media == null ? "—" : `<span class="tbar"><span>${fmtDur(l.media)}</span><i class="${lento ? "slow" : ""}" style="width:${w}px"></i></span>`}</td>
@@ -810,6 +833,7 @@ function renderMetricas(){
   $("metTable").innerHTML = head + `<tbody>${body}</tbody>`;
 }
 
+$("metBusca").addEventListener("input", e => { metBusca = e.target.value; renderMetricas(); });
 $("metPer").addEventListener("click", e => {
   const b = e.target.closest("button[data-d]"); if(!b) return;
   metDias = Number(b.dataset.d); renderMetricas();
