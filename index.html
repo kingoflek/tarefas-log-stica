@@ -300,6 +300,16 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fi-pos .pos small{font-family:var(--font-body);font-weight:500;color:var(--muted);margin-left:4px}
 .fi-pos .sem{color:var(--muted);font-style:italic}
 .wms-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:12px}
+.fi-transf{grid-column:1/-1;order:4;display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:9px 11px;border-radius:10px;
+  border:1px dashed var(--warn);background:var(--warn-bg);color:var(--fg);font-size:13px;line-height:1.35}
+.fi-transf input{width:18px;height:18px;margin:1px 0 0;flex:none;accent-color:var(--ok);cursor:pointer}
+.fi-transf input:disabled{cursor:not-allowed}
+.fi-transf small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.fi-transf.feito{border-style:solid;border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-bg)}
+.fi-transf.feito b{color:var(--ok)}
+.fi-st button:disabled,.fi-qty button:disabled,.fi-qty input:disabled{opacity:.45;cursor:not-allowed}
+.fitem.st-aguardando{box-shadow:inset 4px 0 0 var(--warn)}
+.kpi.k-aguardando b{color:var(--warn)}
 .fi-quem{grid-column:1/-1;font-size:11px;color:var(--muted);order:6}
 .fi-g{order:7}
 .fitem.st-separando{box-shadow:inset 4px 0 0 var(--warn)}
@@ -1134,7 +1144,9 @@ async function carregarFull(){
 /* Status de cada item do Full */
 const FULL_ST = [["separando", "Separando"], ["producao", "Em produção"], ["concluido", "Concluído"]];
 const FULL_ST_ORD = { separando: 0, producao: 1, concluido: 2 };
-const stDe = i => FULL_ST_ORD[i.status] != null ? i.status : "separando";
+// antes de marcar "Fez a transferência do Base" o item fica "aguardando" e não avança
+const stDe = i => !i.transferido ? "aguardando" : FULL_ST_ORD[i.status] != null ? i.status : "separando";
+const ST_LBL = { aguardando: "Aguardando transferência", separando: "Separando", producao: "Em produção", concluido: "Concluído" };
 
 function atualizarFullBadge(){
   $("fullBadge").textContent = fullItens.filter(i => stDe(i) !== "concluido").length || "";
@@ -1150,21 +1162,30 @@ function posHTML(sku){
 }
 
 function fullItemHTML(i, g){
-  const st = stDe(i), ok = st === "concluido";
+  const st = stDe(i), ok = st === "concluido", trava = !i.transferido;
   const p = Math.min(100, Math.round(100 * i.produzido / i.quantidade));
-  const id = esc(i.id);
+  const id = esc(i.id), dis = trava ? "disabled" : "";
+  // só dá para desmarcar a transferência enquanto o item não avançou
+  const podeDesmarcar = !i.transferido || (i.status === "separando" && !i.produzido);
   return `<div class="fitem st-${st} ${ok ? "ok" : ""}" data-id="${id}">
     <div style="min-width:0"><div class="fi-sku">${ok ? "✓ " : ""}${esc(i.sku)}</div>${i.descricao ? `<div class="fi-desc">${esc(i.descricao)}</div>` : ""}</div>
     ${posHTML(i.sku)}
+    <label class="fi-transf ${i.transferido ? "feito" : ""}">
+      <input type="checkbox" data-fa="transf" ${i.transferido ? "checked" : ""} ${podeDesmarcar ? "" : "disabled"}>
+      <span><b>Fez a transferência do Base</b>${i.transferido && i.transferido_por
+        ? `<small>${esc(i.transferido_por)}${i.transferido_em ? " em " + fmtDT(Date.parse(i.transferido_em)) : ""}</small>`
+        : `<small>Marque depois de transferir no WMS. Só então o item libera para separar.</small>`}</span>
+    </label>
     <div class="fi-st" role="group" aria-label="Status de ${esc(i.sku)}">
-      ${FULL_ST.map(([k, lbl]) => `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}">${lbl}</button>`).join("")}
+      ${FULL_ST.map(([k, lbl]) => `<button type="button" class="s-${k}" data-fa="status" data-st="${k}" aria-pressed="${st === k}" ${dis}>${lbl}</button>`).join("")}
     </div>
-    ${i.status_por ? `<div class="fi-quem">${FULL_ST.find(s => s[0] === st)[1]} · ${esc(i.status_por)} em ${fmtDT(Date.parse(i.status_em))}</div>` : ""}
+    ${trava ? `<div class="fi-quem">🔒 Aguardando transferência do Base</div>`
+      : i.status_por ? `<div class="fi-quem">${ST_LBL[st]} · ${esc(i.status_por)} em ${fmtDT(Date.parse(i.status_em))}</div>` : ""}
     <div class="fi-qty">
-      <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}">−</button>
-      <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}">
+      <button type="button" data-fa="menos" aria-label="Diminuir produzidas de ${esc(i.sku)}" ${dis}>−</button>
+      <input type="number" min="0" inputmode="numeric" value="${i.produzido}" data-fa="set" aria-label="Produzidas de ${esc(i.sku)}" ${dis}>
       <span>/ ${i.quantidade}</span>
-      <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}">+</button>
+      <button type="button" data-fa="mais" aria-label="Aumentar produzidas de ${esc(i.sku)}" ${dis}>+</button>
     </div>
     <div class="fi-bar"><i style="width:${p}%"></i></div>
     ${g ? `<div class="fi-g">${fullDelItem === i.id
@@ -1203,6 +1224,7 @@ function renderFull(){
         <select id="fullFiltroSt" style="width:auto;min-width:170px;background:var(--surface)">
           <option value="">Todos os status</option>
           <option value="abertos">Não concluídos</option>
+          <option value="aguardando">Aguardando transferência</option>
           ${FULL_ST.map(([k, lbl]) => `<option value="${k}">${lbl}</option>`).join("")}
         </select>
         <button type="button" class="btn btn-ghost btn-sm" data-fa="pdf">⬇ Baixar PDF</button>
@@ -1224,6 +1246,7 @@ function renderFull(){
   const feitas = fullItens.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
   const nSt = k => fullItens.filter(i => stDe(i) === k).length;
   $("fullResumo").innerHTML =
+    `<div class="kpi k-aguardando"><span>Aguardando transf.</span><b>${nSt("aguardando")}</b></div>` +
     `<div class="kpi k-separando"><span>Separando</span><b>${nSt("separando")}</b></div>` +
     `<div class="kpi k-producao"><span>Em produção</span><b>${nSt("producao")}</b></div>` +
     `<div class="kpi k-concluido"><span>Concluídos</span><b>${nSt("concluido")} de ${fullItens.length}</b></div>` +
@@ -1243,8 +1266,8 @@ function renderFull(){
   const coluna = (tipo, titulo) => {
     const todos = fullItens.filter(i => tipoDe(i) === tipo), its = vis.filter(i => tipoDe(i) === tipo);
     const pq = todos.reduce((s, i) => s + i.quantidade, 0), pp = todos.reduce((s, i) => s + Math.min(i.produzido, i.quantidade), 0);
-    // em produção primeiro, depois separando, concluídos por último
-    const ordemSt = { producao: 0, separando: 1, concluido: 2 };
+    // em produção primeiro, depois separando, aguardando transferência, concluídos por último
+    const ordemSt = { producao: 0, separando: 1, aguardando: 2, concluido: 3 };
     its.sort((a, b) => ordemSt[stDe(a)] - ordemSt[stDe(b)] || a.ordem - b.ordem);
     return `<section class="fcol ${tipo}"><div class="fcol-h"><h3>${titulo}</h3><span>${todos.length} SKUs · ${pp} de ${pq} peças</span></div>
       ${its.length ? its.map(i => fullItemHTML(i, g)).join("") : `<div class="empty">${todos.length ? "Nenhum item neste filtro." : "Nenhum item neste envio."}</div>`}</section>`;
@@ -1259,13 +1282,25 @@ async function salvarItemFull(it, patch, erroPadrao){
   const { data, error } = await sb.from("full_itens").update(patch).eq("id", it.id).select("id");
   if(error || !data || !data.length){
     Object.assign(it, antes); renderFull();
-    showBanner(errMsg(error || { code: "sem_permissao" }, erroPadrao));
+    showBanner(error && /transfer[eê]ncia do Base/i.test(error.message || "") ? "Marque “Fez a transferência do Base” antes de avançar este item."
+      : errMsg(error || { code: "sem_permissao" }, erroPadrao));
   }
 }
 const marcaStatus = st => ({ status: st, status_por: me, status_em: new Date().toISOString() });
 
+function setTransferido(id, marcado){
+  const it = fullItens.find(x => x.id === id); if(!it) return;
+  if(!marcado && (it.status !== "separando" || it.produzido > 0)){ renderFull(); return; }   // já avançou: não desmarca
+  const agora = new Date().toISOString();
+  const patch = marcado
+    ? { transferido: true, transferido_por: me, transferido_em: agora, ...marcaStatus("separando") }
+    : { transferido: false, transferido_por: null, transferido_em: null };
+  return salvarItemFull(it, patch, "Não foi possível salvar a transferência. Tente de novo.");
+}
+
 function setProduzido(id, val){
   const it = fullItens.find(x => x.id === id); if(!it) return;
+  if(!it.transferido){ renderFull(); return; }
   val = Math.max(0, Math.floor(Number(val) || 0));
   if(val === it.produzido){ renderFull(); return; }
   const patch = { produzido: val };
@@ -1277,7 +1312,7 @@ function setProduzido(id, val){
 }
 
 function setStatusFull(id, st){
-  const it = fullItens.find(x => x.id === id); if(!it || stDe(it) === st) return;
+  const it = fullItens.find(x => x.id === id); if(!it || !it.transferido || stDe(it) === st) return;
   const patch = marcaStatus(st);
   if(st === "concluido" && it.produzido < it.quantidade) patch.produzido = it.quantidade;   // concluído = quantidade toda feita
   return salvarItemFull(it, patch, "Não foi possível mudar o status. Tente de novo.");
@@ -1287,6 +1322,7 @@ $("fullEnvio").addEventListener("change", e => { fullSel = e.target.value; fullD
 $("fullConteudo").addEventListener("input", e => { if(e.target.id === "fullBusca"){ fullBusca = e.target.value; renderFull(); } });
 $("fullConteudo").addEventListener("change", e => {
   if(e.target.id === "fullFiltroSt"){ fullFiltroSt = e.target.value; renderFull(); return; }
+  if(e.target.matches('input[data-fa="transf"]')) return setTransferido(e.target.closest(".fitem").dataset.id, e.target.checked);
   if(e.target.matches('input[data-fa="set"]')) setProduzido(e.target.closest(".fitem").dataset.id, e.target.value);
 });
 $("fullConteudo").addEventListener("keydown", e => { if(e.key === "Enter" && e.target.matches('input[data-fa="set"]')) e.target.blur(); });
@@ -1349,7 +1385,7 @@ async function baixarPdfFull(){
   const envio = fullEnvios.find(e => e.id === fullSel); if(!envio) return;
   const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
-  const STL = { separando: "Separando", producao: "Em produção", concluido: "Concluído" };
+  const STL = { aguardando: "Aguardando transf.", separando: "Separando", producao: "Em produção", concluido: "Concluído" };
   const posDe = i => wmsPos.get(String(i.sku).trim().toUpperCase()) || [];
   // ordem de coleta: pela primeira posição; quem não tem posição vai para o fim
   const ordenar = arr => arr.slice().sort((a, b) => {
