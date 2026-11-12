@@ -292,6 +292,8 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fprog-bar{height:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;overflow:hidden}
 .fprog-bar i{display:block;height:100%;background:var(--accent);border-radius:999px;min-width:0}
 @media (prefers-reduced-motion:no-preference){.fprog-bar i{transition:width .4s ease}}
+.fprog-etapas{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fprog-etapas b{color:var(--fg);font-weight:600}
 .fprog.cheio{border-color:var(--ok);background:var(--ok-bg)}
 .fprog.cheio .fprog-bar i{background:var(--ok)}
 .fprog.cheio .fprog-top b,.fprog.cheio .fprog-top strong{color:var(--ok)}
@@ -1294,12 +1296,31 @@ function renderFull(){
     `<div class="kpi"><span>Peças produzidas</span><b>${feitas} de ${tot}</b></div>` +
     `<div class="kpi ${tot - feitas ? "crit" : ""}"><span>Faltam peças</span><b>${tot - feitas}</b></div>`;
 
-  // barra de conclusão do envio (por peças produzidas)
-  const pct = tot ? Math.floor(100 * feitas / tot) : 0, cheio = tot > 0 && feitas >= tot;
+  // barra de conclusão: cada etapa de cada item conta, pesada pelo nº de peças do item
+  //   transferência do Base 10% · separação concluída 20% · colaborador escolhido +5%
+  //   peças produzidas até +70% · concluído = 100%
+  const fracItem = i => {
+    const st = stDe(i);
+    if(st === "concluido") return 1;
+    const prod = Math.min(i.produzido, i.quantidade) / i.quantidade;
+    const base = st === "producao" ? 0.20 + (i.colaborador ? 0.05 : 0) : (i.transferido ? 0.10 : 0);
+    return Math.min(0.95, base + 0.70 * prod);
+  };
+  const pctExato = tot ? 100 * fullItens.reduce((s, i) => s + i.quantidade * fracItem(i), 0) / tot : 0;
+  const cheio = fullItens.length > 0 && nSt("concluido") === fullItens.length;
+  const pctTxt = cheio ? "100" : (Math.floor(pctExato * 10) / 10).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const nTransf = fullItens.filter(i => i.transferido).length;
+  const nSepOk = fullItens.filter(i => stDe(i) !== "separando").length;
   $("fullProg").className = "fprog" + (cheio ? " cheio" : "");
   $("fullProg").innerHTML = `
-    <div class="fprog-top"><b>${cheio ? "✓ Full concluído" : "Conclusão do Full"}</b><span><strong>${pct}%</strong> · ${feitas} de ${tot} peças · ${nSt("concluido")} de ${fullItens.length} SKUs concluídos</span></div>
-    <div class="fprog-bar" role="progressbar" aria-label="Conclusão do Full" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${tot ? 100 * feitas / tot : 0}%"></i></div>`;
+    <div class="fprog-top"><b>${cheio ? "✓ Full concluído" : "Conclusão do Full"}</b><span><strong>${pctTxt}%</strong></span></div>
+    <div class="fprog-bar" role="progressbar" aria-label="Conclusão do Full" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pctExato.toFixed(1)}"><i style="width:${cheio ? 100 : pctExato}%"></i></div>
+    <div class="fprog-etapas">
+      <span>Transferência <b>${nTransf}/${fullItens.length}</b></span>
+      <span>Separação <b>${nSepOk}/${fullItens.length}</b></span>
+      <span>Peças produzidas <b>${feitas}/${tot}</b></span>
+      <span>Concluídos <b>${nSt("concluido")}/${fullItens.length}</b></span>
+    </div>`;
 
   // abas: Separando → Em produção → Concluído
   const ABAS = [["separando", "Separando", "📦"], ["producao", "Em produção", "🛠"], ["concluido", "Concluído", "✓"]];
