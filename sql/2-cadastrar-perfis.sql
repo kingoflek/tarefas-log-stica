@@ -13,7 +13,8 @@ from (values
   ('VINICIUS',        'vinicius@logistica.local',        false, false, 4),
   ('GUILHERME',       'guilherme@logistica.local',       false, false, 5),
   ('RODRIGO',         'rodrigo@logistica.local',         false, false, 6),
-  ('ALISON',          'alison@logistica.local',          false, false, 7)
+  ('ALISON',          'alison@logistica.local',          false, false, 7),
+  ('VICTOR',          'victor@logistica.local',          true,  false, 8)
 ) as v(nome, email, gestor, conferente, ordem)
 join auth.users u on lower(u.email) = lower(v.email)
 on conflict (id) do update
