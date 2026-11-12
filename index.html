@@ -1324,9 +1324,13 @@ function renderFull(){
   if(!me) return;
   fullRenderPendente = false;
   const g = isGestor(me);
-  const imp = podeImportar(me);                            // hoje só o DANILO (coluna pode_importar em perfis)
-  $("fullNovo").hidden = !imp; $("wmsNovo").hidden = !imp;
-  if(!imp){ $("fullImport").hidden = true; $("wmsImport").hidden = true; }
+  // importar PDF: no Full só quem tem pode_importar (DANILO); na Distribuidora também os gestores.
+  // posições do WMS: só quem tem pode_importar.
+  const impWms = podeImportar(me);
+  const imp = impWms || (canalAtual() === "dist" && g);
+  $("fullNovo").hidden = !imp; $("wmsNovo").hidden = !impWms;
+  if(!imp) $("fullImport").hidden = true;
+  if(!impWms) $("wmsImport").hidden = true;
   $("wmsInfo").textContent = wmsMeta
     ? `Posições atuais: ${wmsMeta.total ?? "?"} registros, importados em ${fmtDT(Date.parse(wmsMeta.em))} por ${wmsMeta.por || "—"}.`
     : "Nenhuma posição importada ainda.";
