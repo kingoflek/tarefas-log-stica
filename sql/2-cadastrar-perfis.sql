@@ -18,7 +18,9 @@ from (values
   ('MAILSON',         'mailson@logistica.local',         false, false, 9),
   ('RAFAEL BARBOSA',  'rafaelbarbosa@logistica.local',   false, false, 10),
   ('JOÃO VICTOR',     'joaovictor@logistica.local',      false, false, 11),
-  ('FELIPE',          'felipe@logistica.local',          false, false, 12)
+  ('FELIPE',          'felipe@logistica.local',          false, false, 12),
+  ('TIAGO SOARES',    'tiagosoares@logistica.local',     true,  false, 13),
+  ('CARLOS EDUARDO',  'carloseduardo@logistica.local',   false, false, 14)
 ) as v(nome, email, gestor, conferente, ordem)
 join auth.users u on lower(u.email) = lower(v.email)
 on conflict (id) do update
