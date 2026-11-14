@@ -750,6 +750,9 @@ const SUPABASE_URL = "https://gptayugiaxkilkzqtmcz.supabase.co";      // ex.: ht
 const SUPABASE_KEY = "sb_publishable_Ew_UkjJhPjJo1pzxBtgiwA__amFwLO6";    // a chave "anon public" ou "publishable"
 // Assistente virtual: a "Production URL" do Webhook no n8n. Deixe vazio para esconder o chat.
 const N8N_URL = "https://danilorodrigues1992.app.n8n.cloud/webhook/agente-tarefas";
+// Voz do Yone (Azure pelo n8n). Vazio = usa a voz do navegador.
+// Para ligar a voz do Azure no futuro: "https://danilorodrigues1992.app.n8n.cloud/webhook/yone-voz"
+const YONE_VOZ_URL = "";
 /* ==================================================================== */
 
 let USERS = [], GESTORES = [], CONFERENTES = [], perfis = [];
@@ -2558,21 +2561,66 @@ function agLimpar(){
 let agFalaOn = true;
 try{ agFalaOn = localStorage.getItem("yoneFala") !== "0"; }catch{}
 function agFalaBotao(){ const b = $("agFala"); b.textContent = agFalaOn ? "🔊" : "🔇"; b.classList.toggle("on", agFalaOn); b.setAttribute("aria-pressed", agFalaOn); b.title = agFalaOn ? "Desligar a voz do Yone" : "Ligar a voz do Yone"; }
-function agFalar(texto){
-  if(!agFalaOn || !window.speechSynthesis) return;
+let agAudio = null;
+function agCalar(){
+  if(agAudio){ agAudio.pause(); agAudio = null; }
+  if(window.speechSynthesis) speechSynthesis.cancel();
+}
+async function agFalar(texto){
+  if(!agFalaOn) return;
+  agCalar();
+  const limpo = texto.replace(/[*_#`]/g, "");
+  if(/^https:\/\/.+/.test(YONE_VOZ_URL) && sb){
+    try{
+      const { data } = await sb.auth.getSession();
+      const token = data && data.session && data.session.access_token;
+      const r = await fetch(YONE_VOZ_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+        body: JSON.stringify({ texto: limpo })
+      });
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      const blob = await r.blob();
+      if(!agFalaOn) return;
+      agAudio = new Audio(URL.createObjectURL(blob));
+      await agAudio.play();
+      return;
+    }catch{ /* se a voz do Azure falhar, usa a do navegador */ }
+  }
+  agFalarNavegador(limpo);
+}
+/* Escolhe a melhor voz masculina e natural em português que o aparelho tiver */
+const AG_VOZES_MASC = /antonio|donato|fabio|f[aá]bio|humberto|julio|j[uú]lio|nicolau|valerio|val[eé]rio|daniel|felipe|ricardo/i;
+let agVozEscolhida = null;
+function agEscolherVoz(){
+  if(!window.speechSynthesis) return null;
+  const pt = speechSynthesis.getVoices().filter(v => /^pt/i.test(v.lang));
+  if(!pt.length) return null;
+  const nota = v => (AG_VOZES_MASC.test(v.name) ? 10 : 0) + (/natural|online|neural|premium|enhanced/i.test(v.name) ? 5 : 0) + (/^pt[-_]BR/i.test(v.lang) ? 3 : 0);
+  return pt.sort((a, b) => nota(b) - nota(a))[0];
+}
+if(window.speechSynthesis){
+  agVozEscolhida = agEscolherVoz();
+  speechSynthesis.addEventListener("voiceschanged", () => { agVozEscolhida = agEscolherVoz(); });
+}
+function agFalarNavegador(texto){
+  if(!window.speechSynthesis) return;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(texto.replace(/[*_#`]/g, ""));
+  const u = new SpeechSynthesisUtterance(texto);
   u.lang = "pt-BR";
-  const v = speechSynthesis.getVoices().find(x => /^pt[-_]BR/i.test(x.lang));
+  const v = agVozEscolhida || agEscolherVoz();
   if(v) u.voice = v;
+  const masc = v && AG_VOZES_MASC.test(v.name);
+  u.pitch = masc ? 0.8 : 0.9;   // mais grave
+  u.rate = 0.92;                // mais calmo
   speechSynthesis.speak(u);
 }
-if(!window.speechSynthesis) $("agFala").hidden = true;
+if(!window.speechSynthesis && !/^https:\/\/.+/.test(YONE_VOZ_URL)) $("agFala").hidden = true;
 agFalaBotao();
 $("agFala").addEventListener("click", () => {
   agFalaOn = !agFalaOn; agFalaBotao();
   try{ localStorage.setItem("yoneFala", agFalaOn ? "1" : "0"); }catch{}
-  if(!agFalaOn && window.speechSynthesis) speechSynthesis.cancel();
+  if(!agFalaOn) agCalar();
 });
 
 /* Voz: reconhecimento de fala do navegador (Chrome, Edge, Safari) */
@@ -2595,7 +2643,7 @@ if(AgRec){
   $("agMic").addEventListener("click", () => {
     if(agOcupado) return;
     if(agGravando){ agRec.stop(); return; }
-    if(window.speechSynthesis) speechSynthesis.cancel();
+    agCalar();
     $("agTexto").value = "";
     try{ agRec.start(); agGravando = true; $("agMic").classList.add("gravando"); $("agMic").title = "Parar"; }catch{}
   });
@@ -2612,7 +2660,7 @@ $("agBtn").addEventListener("click", () => {
 });
 $("agFechar").addEventListener("click", () => {
   $("agPanel").hidden = true;
-  if(window.speechSynthesis) speechSynthesis.cancel();
+  agCalar();
   if(agGravando && agRec) agRec.stop();
 });
 $("agNova").addEventListener("click", () => { if(!agOcupado) agLimpar(); });
