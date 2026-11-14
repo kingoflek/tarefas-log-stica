@@ -494,6 +494,26 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   main{padding-top:16px}
 }
 @media (max-width:420px){.side-user .avatar{display:none}}
+
+/* ---------- Assistente virtual (chat) ---------- */
+.ag-btn{position:fixed;right:20px;bottom:20px;z-index:60;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:26px;cursor:pointer;box-shadow:0 6px 20px rgba(28,21,48,.25)}
+.ag-panel{position:fixed;right:20px;bottom:88px;z-index:60;width:min(380px,calc(100vw - 32px));height:min(540px,calc(100vh - 120px));display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(28,21,48,.22);overflow:hidden}
+.ag-panel[hidden],.ag-btn[hidden]{display:none}
+.ag-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);font-weight:700}
+.ag-head span{flex:1}
+.ag-head button{border:0;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 6px;border-radius:6px}
+.ag-head button:hover{background:var(--surface-2);color:var(--fg)}
+.ag-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.ag-m{max-width:85%;padding:9px 12px;border-radius:12px;white-space:pre-wrap;word-wrap:break-word;line-height:1.4;font-size:14px}
+.ag-m.eu{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:4px}
+.ag-m.ia{align-self:flex-start;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-bottom-left-radius:4px}
+.ag-m.erro{align-self:flex-start;background:var(--crit-bg);color:var(--crit)}
+.ag-m.pensando{color:var(--muted);font-style:italic}
+.ag-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+.ag-form textarea{flex:1;resize:none;height:42px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface-2);color:var(--fg);font:inherit;font-size:14px}
+.ag-form button{border:0;border-radius:10px;padding:0 14px;background:var(--accent);color:var(--accent-ink);font-weight:600;cursor:pointer}
+.ag-form button:disabled{opacity:.5;cursor:default}
+@media (max-width:620px){.ag-btn{right:16px;bottom:16px}.ag-panel{right:16px;bottom:80px}}
 </style>
 </head>
 <body>
@@ -693,12 +713,25 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 </div><!-- /stage -->
 </div><!-- /shell -->
 
+<!-- Assistente virtual -->
+<button type="button" class="ag-btn" id="agBtn" title="Assistente virtual" aria-label="Abrir assistente virtual" hidden>💬</button>
+<section class="ag-panel" id="agPanel" aria-label="Assistente virtual" hidden>
+  <div class="ag-head"><span>Assistente virtual</span><button type="button" id="agNova">Nova conversa</button><button type="button" id="agFechar" aria-label="Fechar">✕</button></div>
+  <div class="ag-msgs" id="agMsgs"></div>
+  <form class="ag-form" id="agForm">
+    <textarea id="agTexto" placeholder="Pergunte sobre as tarefas…" maxlength="2000"></textarea>
+    <button type="submit" id="agEnviar">Enviar</button>
+  </form>
+</section>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* ===== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase =====
    Supabase > Project Settings > API (ou "API Keys")                    */
 const SUPABASE_URL = "https://gptayugiaxkilkzqtmcz.supabase.co";      // ex.: https://abcdefgh.supabase.co
 const SUPABASE_KEY = "sb_publishable_Ew_UkjJhPjJo1pzxBtgiwA__amFwLO6";    // a chave "anon public" ou "publishable"
+// Assistente virtual: a "Production URL" do Webhook no n8n. Deixe vazio para esconder o chat.
+const N8N_URL = "https://danilorodrigues1992.app.n8n.cloud/webhook/agente-tarefas";
 /* ==================================================================== */
 
 let USERS = [], GESTORES = [], CONFERENTES = [], perfis = [];
@@ -850,6 +883,7 @@ function showApp(){
   const has = !!me;
   $("pick").hidden = has; $("app").hidden = !has; $("who").hidden = !has;
   $("side").hidden = !has; $("topbar").hidden = !has; document.body.classList.toggle("fora", !has);
+  agMostrar(has);
   if(!has){ renderPick(); return; }
   const g = isGestor(me);
   $("whoName").textContent = me;
@@ -2487,6 +2521,63 @@ async function boot(){
   if(data && data.session) entrar(data.session.user);
   sb.auth.onAuthStateChange(ev => { if(ev === "SIGNED_OUT" && me){ setTimeout(logout, 0); } });
 }
+
+/* ---------- Assistente virtual (n8n) ---------- */
+let agSessao = null, agOcupado = false;
+const agAtivo = () => /^https:\/\/.+/.test(N8N_URL);
+function agMostrar(logado){
+  const ok = logado && agAtivo();
+  $("agBtn").hidden = !ok;
+  if(!ok){ $("agPanel").hidden = true; agLimpar(); }
+}
+function agLimpar(){
+  agSessao = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+  $("agMsgs").innerHTML = "";
+  agMsg("ia", "Oi! Posso responder sobre as tarefas" + (isGestor(me) ? " e criar tarefas novas" : "") + ". Ex.: “quais tarefas estão atrasadas?”");
+}
+function agMsg(tipo, texto){
+  const d = document.createElement("div");
+  d.className = "ag-m " + tipo; d.textContent = texto;
+  $("agMsgs").appendChild(d); $("agMsgs").scrollTop = $("agMsgs").scrollHeight;
+  return d;
+}
+$("agBtn").addEventListener("click", () => {
+  const p = $("agPanel"); p.hidden = !p.hidden;
+  if(!p.hidden){ if(!$("agMsgs").children.length) agLimpar(); $("agTexto").focus(); }
+});
+$("agFechar").addEventListener("click", () => { $("agPanel").hidden = true; });
+$("agNova").addEventListener("click", () => { if(!agOcupado) agLimpar(); });
+$("agTexto").addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("agForm").requestSubmit(); }
+});
+$("agForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const texto = $("agTexto").value.trim();
+  if(!texto || agOcupado || !sb) return;
+  agOcupado = true; $("agEnviar").disabled = true;
+  agMsg("eu", texto); $("agTexto").value = "";
+  const espera = agMsg("ia pensando", "Pensando…");
+  try{
+    const { data } = await sb.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    if(!token) throw new Error("sem sessão");
+    const r = await fetch(N8N_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ mensagem: texto, sessionId: agSessao })
+    });
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    espera.remove();
+    agMsg("ia", (j && j.resposta) || "Não consegui responder agora.");
+    if(/criad|atribu/i.test(j && j.resposta || "")) carregarTarefas();
+  }catch(err){
+    espera.remove();
+    agMsg("erro", "Não foi possível falar com o assistente. Tente de novo em instantes.");
+  }finally{
+    agOcupado = false; $("agEnviar").disabled = false; $("agTexto").focus();
+  }
+});
 
 showApp();
 boot();
