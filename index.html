@@ -319,6 +319,9 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .alerta-atraso li{margin:2px 0}
 @media (max-width:620px){.alerta-atraso{grid-template-columns:auto minmax(0,1fr)}.alerta-atraso .btn{grid-column:1/-1}}
 @media (prefers-reduced-motion:no-preference){.alerta-atraso .aa-ic{animation:pulso 1.6s ease-in-out infinite}}
+.tshare{display:flex;justify-content:flex-end;border-top:1px dashed var(--line);padding-top:10px}
+.btn-zap{background:#25d366;color:#0b3d1f;font-weight:700}
+.btn-zap:hover{filter:brightness(1.05)}
 .full-modo .cnt{font-size:11px;font-weight:700;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--surface-2);color:var(--fg)}
 .full-modo .cnt:empty{display:none}
 .full-modo button[aria-pressed="true"] .cnt{background:rgba(255,255,255,.25);color:inherit}
@@ -2364,6 +2367,53 @@ $("fullFile").addEventListener("change", async e => {
   }
 });
 
+/* ---------- Resumo da tarefa para o WhatsApp ----------
+   Monta o texto com todos os dados (formatação do WhatsApp: *negrito*, _itálico_) e abre o
+   WhatsApp (app no celular, WhatsApp Web no computador) para escolher o contato. */
+function resumoTarefa(t){
+  const L = [];
+  const done = t.status === "concluida";
+  const sit = done ? (t.conferida ? "✅ Concluída e conferida" : "✔️ Concluída · aguardando conferência")
+    : atrasada(t) ? `⚠️ ATRASADA há ${diasAtraso(t)} ${diasAtraso(t) === 1 ? "dia" : "dias"}`
+    : (t.devolucao && t.devolucao.motivo ? "↩️ Devolvida para refazer" : "⏳ Pendente");
+  L.push(`📋 *TAREFA ${codigo(t.id)}*`);
+  L.push(`*${t.titulo}*`);
+  L.push("");
+  L.push(`*Situação:* ${sit}`);
+  L.push(`*Prioridade:* ${atrasada(t) ? "Máxima (atrasada)" : (PRIO_LBL[t.prioridade] || "Média")}`);
+  if(t.sku) L.push(`*SKU:* ${t.sku}`);
+  L.push(`*Responsável:* ${t.responsavel}`);
+  L.push(`*Atribuída por:* ${t.criadoPor || "—"}`);
+  L.push(`*Prazo:* ${t.prazo ? fmtData(t.prazo) : "sem prazo"}`);
+  L.push(`*Criada em:* ${fmtDT(t.criadoEm)}`);
+  L.push("");
+  L.push(`📝 *Descrição:*`); L.push(t.descricao || "—");
+  L.push("");
+  L.push(`🎯 *Ação esperada:*`); L.push(t.acao || "—");
+  if(done){
+    L.push("");
+    L.push(`✔️ *Concluída por* ${t.concluidoPor || t.responsavel} em ${fmtDT(t.concluidoEm)}`);
+    if(t.obsConclusao) L.push(`_Obs.: ${t.obsConclusao}_`);
+    if(t.conferida){
+      L.push(`✅ *Conferida por* ${t.conferidoPor} em ${fmtDT(t.conferidoEm)}`);
+      if(t.obsConferencia) L.push(`_Obs. da conferência: ${t.obsConferencia}_`);
+    }
+  }
+  if(!done && t.devolucao && t.devolucao.motivo){
+    L.push("");
+    L.push(`↩️ *Devolvida por* ${t.devolucao.por} em ${fmtDT(t.devolucao.em)}`);
+    L.push(`_Motivo: ${t.devolucao.motivo}_`);
+  }
+  L.push("");
+  L.push(`_Enviado por ${me} pelo sistema Logística · ${new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}_`);
+  return L.join("\n");
+}
+function enviarWhatsApp(t){
+  const url = "https://wa.me/?text=" + encodeURIComponent(resumoTarefa(t));
+  const w = window.open(url, "_blank", "noopener");
+  if(!w) location.href = url;   // se o navegador bloquear a nova aba
+}
+
 function card(t, g){
   const done = t.status==="concluida";
   const late = atrasada(t);
@@ -2425,6 +2475,7 @@ function card(t, g){
       ${done && t.conferida?`<div class="confbox">✓ Conferida e aprovada por <b>${esc(t.conferidoPor)}</b> em ${fmtDT(t.conferidoEm)}${t.obsConferencia?`<p>${esc(t.obsConferencia)}</p>`:""}</div>`:""}
       ${devolvida?`<div class="devbox">↩ Devolvida por <b>${esc(t.devolucao.por)}</b> em ${fmtDT(t.devolucao.em)}. Refaça e marque como concluída de novo.<p>${esc(t.devolucao.motivo)}</p></div>`:""}
       ${actions?`<div class="tactions">${actions}</div>`:""}
+      <div class="tshare"><button type="button" class="btn btn-zap btn-sm" data-act="whatsapp" data-id="${esc(t.id)}"><span aria-hidden="true">💬</span> Enviar resumo no WhatsApp</button></div>
       </div>`:""}
     </div></article>`;
 }
@@ -2438,6 +2489,7 @@ async function atualizar(id, patch){
 $("tasks").addEventListener("click", async e => {
   const b = e.target.closest("button[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
+  if(act==="whatsapp"){ const t = tasks.find(x => x.id === id); if(t) enviarWhatsApp(t); return; }
   if(act==="toggle"){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); if([openConfirm,openDelete,openAprov,openDevolver].includes(id)) openConfirm = openDelete = openAprov = openDevolver = null; render(); return; }
   if(act==="abrir"){ openConfirm = id; openDelete = null; render(); const i = $("obs-"+id); i && i.focus(); return; }
   if(act==="cancelar"){ openConfirm = openDelete = openAprov = openDevolver = null; render(); return; }
