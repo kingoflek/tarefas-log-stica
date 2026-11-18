@@ -319,7 +319,10 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .alerta-atraso li{margin:2px 0}
 @media (max-width:620px){.alerta-atraso{grid-template-columns:auto minmax(0,1fr)}.alerta-atraso .btn{grid-column:1/-1}}
 @media (prefers-reduced-motion:no-preference){.alerta-atraso .aa-ic{animation:pulso 1.6s ease-in-out infinite}}
-.tshare{display:flex;justify-content:flex-end;border-top:1px dashed var(--line);padding-top:10px}
+.tshare{display:flex;flex-direction:column;align-items:flex-end;gap:6px;border-top:1px dashed var(--line);padding-top:10px}
+.tshare .btn{min-width:230px}
+.tshare .btn.copiado{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+@media (max-width:520px){.tshare{align-items:stretch}.tshare .btn{min-width:0}}
 .btn-zap{background:#25d366;color:#0b3d1f;font-weight:700}
 .btn-zap:hover{filter:brightness(1.05)}
 .full-modo .cnt{font-size:11px;font-weight:700;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--surface-2);color:var(--fg)}
@@ -2408,8 +2411,28 @@ function resumoTarefa(t){
   L.push(`_Enviado por ${me} pelo sistema Logística · ${new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}_`);
   return L.join("\n");
 }
+// Copia o mesmo texto do WhatsApp para a área de transferência (para colar onde quiser)
+async function copiarResumo(t, b){
+  const txt = resumoTarefa(t);
+  let ok = false;
+  try{ await navigator.clipboard.writeText(txt); ok = true; }
+  catch{
+    // navegadores sem permissão de área de transferência: cópia pelo jeito antigo
+    const ta = document.createElement("textarea");
+    ta.value = txt; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try{ ok = document.execCommand("copy"); }catch{}
+    ta.remove();
+  }
+  const original = b.innerHTML;
+  b.innerHTML = ok ? "✓ Resumo copiado!" : "Não foi possível copiar";
+  b.classList.toggle("copiado", ok);
+  setTimeout(() => { if(b.isConnected){ b.innerHTML = original; b.classList.remove("copiado"); } }, 2000);
+}
+
 function enviarWhatsApp(t){
-  const url = "https://wa.me/?text=" + encodeURIComponent(resumoTarefa(t));
+  // endereço direto (o atalho wa.me redireciona e estraga os emojis no caminho)
+  const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(resumoTarefa(t));
   const w = window.open(url, "_blank", "noopener");
   if(!w) location.href = url;   // se o navegador bloquear a nova aba
 }
@@ -2475,7 +2498,10 @@ function card(t, g){
       ${done && t.conferida?`<div class="confbox">✓ Conferida e aprovada por <b>${esc(t.conferidoPor)}</b> em ${fmtDT(t.conferidoEm)}${t.obsConferencia?`<p>${esc(t.obsConferencia)}</p>`:""}</div>`:""}
       ${devolvida?`<div class="devbox">↩ Devolvida por <b>${esc(t.devolucao.por)}</b> em ${fmtDT(t.devolucao.em)}. Refaça e marque como concluída de novo.<p>${esc(t.devolucao.motivo)}</p></div>`:""}
       ${actions?`<div class="tactions">${actions}</div>`:""}
-      <div class="tshare"><button type="button" class="btn btn-zap btn-sm" data-act="whatsapp" data-id="${esc(t.id)}"><span aria-hidden="true">💬</span> Enviar resumo no WhatsApp</button></div>
+      <div class="tshare">
+        <button type="button" class="btn btn-zap btn-sm" data-act="whatsapp" data-id="${esc(t.id)}"><span aria-hidden="true">💬</span> Enviar resumo no WhatsApp</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-act="copiar" data-id="${esc(t.id)}"><span aria-hidden="true">📋</span> Copiar resumo da tarefa</button>
+      </div>
       </div>`:""}
     </div></article>`;
 }
@@ -2490,6 +2516,7 @@ $("tasks").addEventListener("click", async e => {
   const b = e.target.closest("button[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
   if(act==="whatsapp"){ const t = tasks.find(x => x.id === id); if(t) enviarWhatsApp(t); return; }
+  if(act==="copiar"){ const t = tasks.find(x => x.id === id); if(t) copiarResumo(t, b); return; }
   if(act==="toggle"){ expanded.has(id) ? expanded.delete(id) : expanded.add(id); if([openConfirm,openDelete,openAprov,openDevolver].includes(id)) openConfirm = openDelete = openAprov = openDevolver = null; render(); return; }
   if(act==="abrir"){ openConfirm = id; openDelete = null; render(); const i = $("obs-"+id); i && i.focus(); return; }
   if(act==="cancelar"){ openConfirm = openDelete = openAprov = openDevolver = null; render(); return; }
