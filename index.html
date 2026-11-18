@@ -324,6 +324,24 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .tshare .btn.copiado{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
 @media (max-width:520px){.tshare{align-items:stretch}.tshare .btn{min-width:0}}
 .btn-zap{background:#25d366;color:#0b3d1f;font-weight:700}
+.rec-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px;display:grid;gap:14px;margin-bottom:16px}
+.rec-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start}
+.rec-head h3{margin:0;font-size:18px;font-weight:700}
+.rec-head p{margin:4px 0 0;font-size:13px;color:var(--muted);max-width:520px}
+.rec-ciclo{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.rec-chip{display:grid;text-align:center;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:11px;color:var(--muted);line-height:1.3}
+.rec-chip b{font-size:13px;color:var(--fg)}
+.rec-chip.vez{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rec-chip.vez b{color:var(--accent-ink)}
+.rec-ciclo .seta{color:var(--muted);font-weight:700}
+.rec-agora{background:var(--surface-2);border-left:4px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:14px}
+.rec-tab{min-width:620px}
+.rec-tab tr.atual td{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.rec-st{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.rec-st.ok{background:var(--ok-bg);color:var(--ok)}
+.rec-st.pend{background:var(--warn-bg);color:var(--warn)}
+.rec-st.late{background:var(--crit);color:#fff}
+.rec-st.falta{background:var(--crit-bg);color:var(--crit)}
 .btn-zap:hover{filter:brightness(1.05)}
 .full-modo .cnt{font-size:11px;font-weight:700;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--surface-2);color:var(--fg)}
 .full-modo .cnt:empty{display:none}
@@ -546,6 +564,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
     <button type="button" role="tab" data-view="tarefas" aria-selected="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg><span>Tarefas</span></button>
     <button type="button" role="tab" data-view="atrasadas" aria-selected="false" class="tab-late"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg><span>Atrasadas</span><span class="badge late" id="lateBadge"></span></button>
     <button type="button" role="tab" data-view="conferencia" aria-selected="false" id="tabConf" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><path d="m22 4-10 10-3-3"/></svg><span>Conferência</span><span class="badge" id="confBadge"></span></button>
+    <button type="button" role="tab" data-view="recorrentes" aria-selected="false" id="tabRec"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg><span>Recorrentes</span><span class="badge" id="recBadge"></span></button>
     <div class="side-sec">Expedição</div>
     <button type="button" role="tab" data-view="full" aria-selected="false" id="tabFull"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg><span>Full ML</span><span class="badge" id="fullBadge"></span></button>
     <button type="button" role="tab" data-view="dist" aria-selected="false" id="tabDist"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span>Distribuidora</span><span class="badge" id="distBadge"></span></button>
@@ -679,6 +698,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
         <div id="histLista"></div>
       </div>
     </div>
+    <div id="recSec" hidden><div id="recConteudo"></div></div>
     <div id="metrics" hidden>
       <div class="met-top">
         <h2>Desempenho da equipe</h2>
@@ -977,9 +997,10 @@ function syncTabs(){
   document.querySelector(".filters .seg").hidden = view==="atrasadas";
   $("listTitle").textContent = view==="conferencia" ? "Conferência" : view==="atrasadas" ? "Atrasadas" : (isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas");
   $("listTitle").style.color = view==="atrasadas" ? "var(--crit)" : "";
-  $("crumb").textContent = ({ tarefas: isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas", atrasadas: "Atrasadas", conferencia: "Conferência", full: "Full Mercado Livre", dist: "Distribuidora", metricas: "Métricas" })[view] || "";
-  const g = isGestor(me), full = telaFull(), met = view==="metricas" || full;  // telas de largura toda
+  $("crumb").textContent = ({ tarefas: isGestor(me) ? "Quadro de tarefas" : "Minhas tarefas", atrasadas: "Atrasadas", conferencia: "Conferência", full: "Full Mercado Livre", dist: "Distribuidora", recorrentes: "Tarefas recorrentes", metricas: "Métricas" })[view] || "";
+  const g = isGestor(me), full = telaFull(), met = view==="metricas" || view==="recorrentes" || full;  // telas de largura toda
   $("metrics").hidden = view!=="metricas";
+  $("recSec").hidden = view!=="recorrentes";
   $("fullSec").hidden = !full;
   document.querySelector(".list-head").hidden = met;
   document.querySelector(".filters").hidden = met;
@@ -1038,7 +1059,9 @@ function render(){
   const base = conf ? tasks.filter(t => t.status==="concluida") : atr ? meus.filter(atrasada) : meus;
   $("confBadge").textContent = tasks.filter(t => t.status==="concluida" && !t.conferida).length || "";
   $("lateBadge").textContent = meus.filter(atrasada).length || "";
+  $("recBadge").textContent = tasks.filter(t => t.recorrencia && t.responsavel === me && t.status !== "concluida").length || "";
   renderAlertaAtraso();
+  if(view==="recorrentes"){ renderRecorrentes(); return; }
   if(view==="metricas"){ renderMetricas(); return; }
   if(telaFull()){ renderFull(); return; }
 
@@ -2370,6 +2393,92 @@ $("fullFile").addEventListener("change", async e => {
   }
 });
 
+/* ---------- Tarefas recorrentes (rodízio semanal) ----------
+   A tabela "recorrencias" guarda o rodízio; a função gerar_recorrentes() do banco cria a tarefa
+   da semana atual (uma vez só) quando alguém abre o site. A aba mostra o rodízio e o status. */
+let recorrencias = [];
+async function gerarRecorrentes(){
+  if(!sb || !me) return;
+  try{
+    const [{ data: criadas }, { data: rec }] = await Promise.all([
+      sb.rpc("gerar_recorrentes"),
+      sb.from("recorrencias").select("*").eq("ativo", true)
+    ]);
+    recorrencias = rec || [];
+    if(criadas > 0) carregarTarefas(); else render();
+  }catch{}
+}
+const segundaDe = d => { const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const maisDias = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const ddmm = d => String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+
+function semanasRecorrencia(r){
+  const ciclo = r.ciclo || [], n = ciclo.length; if(!n) return [];
+  const inicio = new Date(r.inicio + "T12:00:00"), segAtual = segundaDe(new Date());
+  const de = new Date(Math.max(inicio, maisDias(segAtual, -28)));
+  const ate = maisDias(new Date(Math.max(segAtual, inicio)), 7 * 7);
+  const out = [];
+  for(let s = segundaDe(de); s <= ate; s = maisDias(s, 7)){
+    if(s < inicio) continue;
+    const idx = Math.round((s - inicio) / (7 * 864e5)) % n;
+    const chave = r.id + ":" + ymd(s);
+    out.push({ seg: s, sex: maisDias(s, 4), item: ciclo[idx], chave, atual: ymd(s) === ymd(segAtual), futura: s > segAtual,
+               tarefa: tasks.find(t => t.recorrencia === chave) });
+  }
+  return out;
+}
+
+function statusSemana(w){
+  if(w.futura) return { cls: "agendada", txt: "Agendada" };
+  const t = w.tarefa;
+  if(!t) return w.atual ? { cls: "agendada", txt: "Criando tarefa…" } : { cls: "falta", txt: "Sem tarefa" };
+  if(t.status === "concluida") return t.conferida ? { cls: "ok", txt: "✓ Concluída e conferida" } : { cls: "ok", txt: "✓ Concluída" };
+  if(atrasada(t)) return { cls: "late", txt: `⚠ Atrasada ${diasAtraso(t)} ${diasAtraso(t) === 1 ? "dia" : "dias"}` };
+  return { cls: "pend", txt: "Em andamento" };
+}
+
+function renderRecorrentes(){
+  const box = $("recConteudo");
+  if(!recorrencias.length){ box.innerHTML = `<div class="empty"><strong>Carregando tarefas recorrentes…</strong></div>`; return; }
+  let pendentesMinhas = 0;
+  box.innerHTML = `<div class="met-top"><h2>Tarefas recorrentes</h2></div>` + recorrencias.map(r => {
+    const semanas = semanasRecorrencia(r);
+    const atual = semanas.find(w => w.atual);
+    const inicio = new Date(r.inicio + "T12:00:00");
+    const aindaNao = segundaDe(new Date()) < inicio;
+    semanas.forEach(w => { if(w.tarefa && w.tarefa.responsavel === me && w.tarefa.status !== "concluida") pendentesMinhas++; });
+    return `<section class="rec-card">
+      <div class="rec-head">
+        <div><h3>🔁 ${esc(r.titulo)} de corredores</h3><p>${esc(r.descricao)}</p></div>
+        <div class="rec-ciclo" aria-label="Ordem do rodízio">${(r.ciclo || []).map((c, k) =>
+          `${k ? '<span class="seta" aria-hidden="true">→</span>' : ""}<span class="rec-chip ${atual && atual.item.rotulo === c.rotulo ? "vez" : ""}"><b>${esc(c.rotulo)}</b>${esc(c.responsavel)}</span>`).join("")}
+          <span class="seta" aria-hidden="true">↺</span></div>
+      </div>
+      <div class="rec-agora">${aindaNao
+        ? `O rodízio começa na segunda <b>${ddmm(inicio)}</b> com <b>${esc(r.ciclo[0].rotulo)}</b> (${esc(r.ciclo[0].responsavel)}).`
+        : atual ? `Esta semana (${ddmm(atual.seg)} a ${ddmm(atual.sex)}): <b>${esc(atual.item.rotulo)}</b> com <b>${esc(atual.item.responsavel)}</b>.` : ""}</div>
+      <div class="mtable-wrap"><table class="mtable rec-tab">
+        <thead><tr><th>Semana</th><th>Corredor</th><th>Responsável</th><th>Situação</th><th></th></tr></thead>
+        <tbody>${semanas.map(w => { const s = statusSemana(w); return `<tr class="${w.atual ? "atual" : ""}">
+          <td>${ddmm(w.seg)} a ${ddmm(w.sex)}${w.atual ? ' <span class="pill pend">esta semana</span>' : ""}</td>
+          <td><b>${esc(w.item.rotulo)}</b></td>
+          <td>${esc(w.item.responsavel)}</td>
+          <td><span class="rec-st ${s.cls}">${s.txt}</span></td>
+          <td class="r">${w.tarefa && (isGestor(me) || w.tarefa.responsavel === me) ? `<button type="button" class="btn btn-ghost btn-sm" data-rec="ver" data-id="${esc(w.tarefa.id)}">Ver tarefa</button>` : ""}</td>
+        </tr>`; }).join("")}</tbody>
+      </table></div>
+      <p class="met-nota">Toda segunda-feira o sistema cria sozinho a tarefa da semana para o responsável da vez, com prazo na sexta. Ela aparece na aba Tarefas da pessoa, com alerta de atraso e conferência, como qualquer tarefa.</p>
+    </section>`;
+  }).join("");
+}
+$("recConteudo").addEventListener("click", e => {
+  const b = e.target.closest('button[data-rec="ver"]'); if(!b) return;
+  const id = b.dataset.id;
+  view = "tarefas"; filtroSt = "todas"; expanded.add(id);
+  syncTabs(); render();
+  setTimeout(() => { const el = document.querySelector(`.thead[data-id="${CSS.escape(id)}"]`); el && el.scrollIntoView({ block: "center" }); }, 50);
+});
+
 /* ---------- Resumo da tarefa para o WhatsApp ----------
    Monta o texto com todos os dados (formatação do WhatsApp: *negrito*, _itálico_) e abre o
    WhatsApp (app no celular, WhatsApp Web no computador) para escolher o contato. */
@@ -2580,6 +2689,7 @@ function iniciarDados(){
   pararDados();
   loadTimer = setTimeout(() => { if(!loaded) showBanner("O servidor ainda não respondeu. Verifique a conexão; as tarefas aparecem assim que conectar."); }, 10000);
   carregarTarefas();
+  gerarRecorrentes();
   carregarFull();
   canal = sb.channel("tarefas-tempo-real")
     .on("postgres_changes", { event: "*", schema: "public", table: "tarefas" }, () => carregarTarefas())
