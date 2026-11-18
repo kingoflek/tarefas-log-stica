@@ -299,6 +299,18 @@ details.raw pre{max-height:220px;overflow:auto;background:var(--surface-2);borde
 .fprog.cheio .fprog-bar i{background:var(--ok)}
 .fprog.cheio .fprog-top b,.fprog.cheio .fprog-top strong{color:var(--ok)}
 .fi-pos{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:12px;order:4}
+/* "Onde pegar no WMS": logo acima do botão Concluir separação */
+.fi-onde{grid-column:1/-1;order:5;display:grid;gap:8px;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:12px}
+.fi-onde.vazio{color:var(--muted);font-style:italic;display:block}
+.fo-tit{font-weight:700;font-size:12.5px;color:var(--fg)}
+.fo-grupo{display:grid;gap:5px}
+.fo-cab{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;color:var(--muted)}
+.fo-cab b{color:var(--fg)}
+.fo-cab .sku{font-family:var(--font-mono);color:var(--fg)}
+.fo-qtd{margin-left:auto;font-weight:600;color:var(--fg)}
+.fo-chips{display:flex;flex-wrap:wrap;gap:4px}
+.fo-chips .pos{font-family:var(--font-mono);font-weight:600;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--fg)}
+.fo-chips .pos.espera{font-weight:500;color:var(--muted);border-style:dashed}
 .fi-pos .pos{font-family:var(--font-mono);font-weight:600;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
 .fi-pos .pos small{font-family:var(--font-body);font-weight:500;color:var(--muted);margin-left:4px}
 .fi-pos .sem{color:var(--muted);font-style:italic}
@@ -1387,7 +1399,7 @@ async function carregarFull(){
     itens = it.data || [];
   }
   // posições do WMS só dos SKUs deste envio (consulta; não bloqueia o Full se falhar)
-  const skus = [...new Set(itens.map(i => String(i.sku).trim().toUpperCase()))];
+  const skus = [...new Set(itens.flatMap(i => codigosWms(i.sku).map(c => c.cod)))];   // inclui Direito/Esquerdo dos PAR
   const [pos, meta] = await Promise.all([
     skus.length ? sb.from("wms_posicoes").select("sku,posicao,quantidade").in("sku", skus) : { data: [] },
     sb.from("wms_posicoes").select("importado_em,importado_por", { count: "exact" }).order("importado_em", { ascending: false }).limit(1)
@@ -1431,12 +1443,37 @@ function atualizarFullBadge(){
 }
 
 const fmtQtd = q => q == null || q === "" ? "" : Number(q).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+/* Códigos do WMS de um SKU do Full/pedido.
+   SKU "PAR…" (ex.: PARON0172D) é o par: no WMS ficam o Direito (ON0172D) e o Esquerdo (ON0172E). */
+function codigosWms(sku){
+  const s = String(sku || "").trim().toUpperCase();
+  if(!s.startsWith("PAR")) return [{ cod: s, lado: "" }];
+  const base = s.slice(3);
+  if(/D$/.test(base)) return [{ cod: base, lado: "Direito" }, { cod: base.slice(0, -1) + "E", lado: "Esquerdo" }];
+  if(/E$/.test(base)) return [{ cod: base.slice(0, -1) + "D", lado: "Direito" }, { cod: base, lado: "Esquerdo" }];
+  return [{ cod: base, lado: "" }, { cod: s, lado: "" }];
+}
+// Localização do WMS pode vir com várias posições numa célula: "A02-02;A09-01;RECEBIMENTO-FAROL AR"
+const separarPosicoes = txt => String(txt || "").split(/\s*[;|]\s*/).map(p => p.trim()).filter(Boolean);
+const ehAreaEspera = p => /^(RECEB|PT-|CAIXA|CESTO)/i.test(p);   // recebimento/caixas vão para o fim
+function posicoesDoSku(sku){
+  return codigosWms(sku).map(({ cod, lado }) => {
+    const linhas = wmsPos.get(cod) || [];
+    const lista = [...new Set(linhas.flatMap(l => separarPosicoes(l.posicao)))]
+      .sort((a, b) => ehAreaEspera(a) - ehAreaEspera(b) || a.localeCompare(b, "pt-BR", { numeric: true }));
+    const qtd = linhas.reduce((s, l) => s + (Number(l.quantidade) || 0), 0);
+    return { cod, lado, lista, qtd, temQtd: linhas.some(l => l.quantidade != null) };
+  }).filter(g => g.lista.length);
+}
 function posHTML(sku){
   if(!wmsMeta) return "";                                   // nenhuma posição importada ainda
-  const l = wmsPos.get(String(sku).trim().toUpperCase());
-  if(!l || !l.length) return `<div class="fi-pos"><span class="sem">📍 Sem posição no WMS</span></div>`;
-  const MAX = 6;
-  return `<div class="fi-pos">📍 ${l.slice(0, MAX).map(p => `<span class="pos">${esc(p.posicao)}${p.quantidade != null ? `<small>${fmtQtd(p.quantidade)} un.</small>` : ""}</span>`).join("")}${l.length > MAX ? `<span class="sem">+${l.length - MAX} posições</span>` : ""}</div>`;
+  const grupos = posicoesDoSku(sku);
+  if(!grupos.length) return `<div class="fi-onde vazio">📍 <b>Onde pegar:</b> sem posição no WMS para ${esc(codigosWms(sku).map(c => c.cod).join(" / "))}</div>`;
+  return `<div class="fi-onde"><div class="fo-tit">📍 Onde pegar no WMS</div>${grupos.map(g => `
+    <div class="fo-grupo">
+      <div class="fo-cab">${g.lado ? `<b>${g.lado}</b> · ` : ""}<span class="sku">${esc(g.cod)}</span>${g.temQtd ? `<span class="fo-qtd">${fmtQtd(g.qtd)} un. no estoque</span>` : ""}</div>
+      <div class="fo-chips">${g.lista.map(p => `<span class="pos ${ehAreaEspera(p) ? "espera" : ""}">${esc(p)}</span>`).join("")}</div>
+    </div>`).join("")}</div>`;
 }
 
 // colaboradores que podem produzir: os usuários normais (não gestores)
@@ -1455,8 +1492,8 @@ function fullItemHTML(i, g){
   let corpo;
   if(st === "separando"){
     corpo = `<div class="fi-qtdtxt"><b>${i.quantidade}</b> un.</div>
-      ${posHTML(i.sku)}
       ${transf()}
+      ${posHTML(i.sku)}
       <div class="fi-acoes">
         <button type="button" class="btn btn-primary btn-sm" data-fa="avancar" ${i.transferido ? "" : `disabled title="Marque “Fez a transferência do Base” primeiro"`}>${i.transferido ? "" : "🔒 "}Concluir separação →</button>
       </div>`;
@@ -1735,12 +1772,13 @@ async function baixarPdfFull(){
   const doc = new JsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const STL = { aguardando: "Aguardando transf.", separando: "Separando", producao: "Em produção", concluido: "Concluído" };
-  const posDe = i => wmsPos.get(String(i.sku).trim().toUpperCase()) || [];
+  // posições já separadas (e com Direito/Esquerdo para os SKUs PAR)
+  const primeiraPos = i => { const g = posicoesDoSku(i.sku)[0]; return g ? g.lista[0] : null; };
   // ordem de coleta: pela primeira posição; quem não tem posição vai para o fim
   const ordenar = arr => arr.slice().sort((a, b) => {
-    const pa = posDe(a)[0], pb = posDe(b)[0];
+    const pa = primeiraPos(a), pb = primeiraPos(b);
     if(!pa !== !pb) return pa ? -1 : 1;
-    return (pa && pb ? pa.posicao.localeCompare(pb.posicao, "pt-BR", { numeric: true }) : 0) || a.sku.localeCompare(b.sku);
+    return (pa && pb ? pa.localeCompare(pb, "pt-BR", { numeric: true }) : 0) || a.sku.localeCompare(b.sku);
   });
   const tot = fullItens.reduce((s, i) => s + i.quantidade, 0);
 
@@ -1761,9 +1799,9 @@ async function baixarPdfFull(){
       head: [[{ content: `${titulo}  ·  ${its.length} SKUs  ·  ${pecas} peças`, colSpan: 7, styles: { halign: "left", fillColor: tipo === "par" ? [36, 57, 77] : [242, 169, 0], textColor: tipo === "par" ? 255 : [27, 20, 0], fontSize: 11 } }],
              ["", "SKU", "Descrição", "Qtd.", "Feitas", "Posições no WMS (qtd.)", "Status"]],
       body: its.map(i => {
-        const ps = posDe(i);
+        const gs = posicoesDoSku(i.sku);
         return ["", i.sku, (i.descricao || "").replace(/\s*·\s*Cód\. ML.*$/, ""), i.quantidade, i.produzido,
-          ps.length ? ps.map(p => p.posicao + (p.quantidade != null ? `  (${fmtQtd(p.quantidade)})` : "")).join("\n") : "sem posição",
+          gs.length ? gs.map(g => (g.lado ? `${g.lado.slice(0, 3).toUpperCase()}: ` : "") + g.lista.join(", ") + (g.temQtd ? `  (${fmtQtd(g.qtd)} un.)` : "")).join("\n") : "sem posição",
           STL[stDe(i)]];
       }),
       theme: "grid",
@@ -2034,7 +2072,8 @@ function renderWmsPrevia(){
     Array.from({ length: nCols }, (_, k) => `<option value="${k}" ${k === sel ? "selected" : ""}>${esc(nomeCol(k))}</option>`).join("");
   const dados = linhasWms();
   const skusEnvio = new Set(fullItens.map(i => String(i.sku).trim().toUpperCase()));
-  const achados = [...skusEnvio].filter(s => dados.some(d => d.sku === s)).length;
+  const comPos = new Set(dados.map(d => d.sku));
+  const achados = [...skusEnvio].filter(s => codigosWms(s).some(c => comPos.has(c.cod))).length;
   box.innerHTML = `
     <div class="wms-map">
       <div class="field"><label for="wmsCSku">Coluna do SKU</label><select id="wmsCSku" data-w="sku">${opts(P.sku)}</select></div>
