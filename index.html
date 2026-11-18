@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>try{document.documentElement.dataset.tema=localStorage.getItem("tema-site")||"escuro"}catch(e){document.documentElement.dataset.tema="escuro"}</script>
 <title>Tarefas da Logística</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -549,6 +550,52 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 @keyframes agPulso{50%{opacity:.6}}
 @media (prefers-reduced-motion:reduce){.ag-form .ag-mic.gravando{animation:none}}
 @media (max-width:620px){.ag-btn{right:16px;bottom:16px}.ag-panel{right:16px;bottom:80px}}
+
+/* ===================== Tema preto e branco (padrão: escuro; 💡 troca para claro) ===================== */
+:root[data-tema="escuro"]{
+  --bg:#000000; --surface:#111111; --surface-2:#1a1a1a; --line:#2a2a2a;
+  --fg:#f5f5f5; --muted:#a3a3a3; --accent:#f5f5f5; --accent-ink:#0a0a0a;
+  --steel:#d4d4d4; --steel-ink:#0a0a0a; --lado:#a3a3a3; --lado-ink:#0a0a0a;
+  --ok:#4ade80; --ok-bg:#0f2417; --warn:#fbbf6a; --warn-bg:#2a1d0b; --crit:#f87171; --crit-bg:#2e1111;
+  --shadow:none;
+  --side-bg:#000000; --side-fg:#ffffff; --side-txt:rgba(255,255,255,.78); --side-sub:rgba(255,255,255,.45);
+  --side-hover:rgba(255,255,255,.08); --side-sel:rgba(255,255,255,.14); --side-line:#262626;
+  color-scheme:dark}
+:root[data-tema="claro"]{
+  --bg:#f4f4f4; --surface:#ffffff; --surface-2:#f8f8f8; --line:#e2e2e2;
+  --fg:#0a0a0a; --muted:#5c5c5c; --accent:#0a0a0a; --accent-ink:#ffffff;
+  --steel:#262626; --steel-ink:#ffffff; --lado:#6b6b6b; --lado-ink:#ffffff;
+  --ok:#15803d; --ok-bg:#e7f6ec; --warn:#b45309; --warn-bg:#fdf1e2; --crit:#dc2626; --crit-bg:#fdecec;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.04);
+  --side-bg:#ffffff; --side-fg:#0a0a0a; --side-txt:#3d3d3d; --side-sub:#8a8a8a;
+  --side-hover:#f0f0f0; --side-sel:#ebebeb; --side-line:#e2e2e2;
+  color-scheme:light}
+:root[data-tema] .side{background:var(--side-bg);color:var(--side-fg);border-right:1px solid var(--side-line)}
+:root[data-tema] .side-brand{color:var(--side-fg)}
+:root[data-tema] .side-sec{color:var(--side-sub)}
+:root[data-tema] .side-nav button{color:var(--side-txt)}
+:root[data-tema] .side-nav button:hover{background:var(--side-hover);color:var(--side-fg)}
+:root[data-tema] .side-nav button[aria-selected="true"]{background:var(--side-sel);color:var(--side-fg);box-shadow:inset 3px 0 0 var(--side-fg)}
+:root[data-tema] .side-nav button:focus-visible{outline-color:var(--side-fg)}
+:root[data-tema] .side-nav .badge{background:var(--accent);color:var(--accent-ink)}
+:root[data-tema] .side-nav .badge.late{background:var(--crit);color:#fff}
+:root[data-tema] .side-nav .tab-late[aria-selected="true"]{box-shadow:inset 3px 0 0 var(--crit)}
+:root[data-tema] .logo{background:var(--accent);box-shadow:none}
+:root[data-tema] .logo svg{stroke:var(--accent-ink)}
+:root[data-tema] .side-user{border-top-color:var(--side-line)}
+:root[data-tema] .avatar{background:var(--surface-2);color:var(--fg);border:1px solid var(--line)}
+:root[data-tema] .side-user .chip{color:var(--side-fg)}
+:root[data-tema] .side-user .role{color:var(--side-sub);opacity:1}
+:root[data-tema] .who-btns .linkbtn{color:var(--side-fg);border-color:var(--side-line)}
+:root[data-tema] .who-btns .linkbtn:hover{background:var(--side-hover)}
+:root[data-tema] body.fora{background:var(--bg)}
+:root[data-tema] .pick{box-shadow:0 20px 60px rgba(0,0,0,.25);border:1px solid var(--line)}
+:root[data-tema] .btn-primary{box-shadow:none}
+:root[data-tema] input:focus,:root[data-tema] select:focus,:root[data-tema] textarea:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--fg) 15%,transparent)}
+@media (max-width:900px){:root[data-tema] .side-nav button[aria-selected="true"]{box-shadow:inset 0 -2px 0 var(--side-fg)}}
+.bt-tema{font-size:15px;line-height:1;flex:0 0 auto!important;min-width:0}
+.bt-tema-pick{margin-left:auto;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:7px 10px;cursor:pointer}
+.bt-tema[aria-pressed="true"]{filter:grayscale(1)}
 </style>
 </head>
 <body>
@@ -575,6 +622,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
     <span class="avatar" id="whoAvatar" aria-hidden="true"></span>
     <div class="who-txt"><div class="chip" id="whoName"></div><div class="role" id="whoRole"></div></div>
     <div class="who-btns">
+      <button class="linkbtn bt-tema" type="button" aria-label="Trocar tema claro/escuro" title="Mudar para o tema claro">💡</button>
       <button class="linkbtn" id="mudarSenha" type="button">Alterar senha</button>
       <button class="linkbtn" id="trocar" type="button">Sair</button>
     </div>
@@ -585,7 +633,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 <div class="topbar" id="topbar" hidden><span>Logística</span><span aria-hidden="true">/</span><b id="crumb">Tarefas</b></div>
 
 <section class="pick" id="pick" hidden>
-  <div class="pick-brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>Logística</div>
+  <div class="pick-brand"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></span>Logística<button class="bt-tema bt-tema-pick" type="button" aria-label="Trocar tema claro/escuro" title="Mudar para o tema claro">💡</button></div>
   <h1>Quem é você?</h1>
   <p id="pickIntro">Escolha seu nome e digite sua senha.</p>
   <div class="pick-grid" id="pickGrid"></div>
@@ -2391,6 +2439,22 @@ $("fullFile").addEventListener("change", async e => {
     msg.className = "msg err";
     msg.textContent = err && err.message === "pdfjs" ? "Não foi possível carregar o leitor de PDF. Verifique a internet e tente de novo." : "Não foi possível ler este PDF. Ele pode estar protegido por senha ou corrompido.";
   }
+});
+
+/* ---------- Tema: escuro (padrão) ou claro, trocado pelo botão 💡 e guardado neste navegador ---------- */
+function aplicarTema(t){
+  document.documentElement.dataset.tema = t;
+  document.querySelectorAll(".bt-tema").forEach(b => {
+    b.title = t === "escuro" ? "Mudar para o tema claro" : "Mudar para o tema escuro";
+    b.setAttribute("aria-pressed", String(t === "claro"));
+  });
+}
+aplicarTema(document.documentElement.dataset.tema === "claro" ? "claro" : "escuro");
+document.addEventListener("click", e => {
+  if(!e.target.closest(".bt-tema")) return;
+  const t = document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro";
+  try{ localStorage.setItem("tema-site", t); }catch{}
+  aplicarTema(t);
 });
 
 /* ---------- Tarefas recorrentes (rodízio semanal) ----------
